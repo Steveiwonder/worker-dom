@@ -944,6 +944,32 @@ var PLAYGROUND_PRESETS = [
 'console.log(document.documentElement.outerHTML);'
   },
   {
+    name: "HTML + nested SVG",
+    code:
+'// An HTML element wrapping a namespaced SVG that contains a circle.\n' +
+'// HTML stays in the HTML namespace; the <svg>/<circle> live in SVG_NS.\n' +
+'const document = createDocument();\n\n' +
+'const figure = document.createElement("figure");   // HTML element\n' +
+'figure.className = "chart";\n\n' +
+'const svg = document.createElementNS(SVG_NS, "svg");\n' +
+'svg.setAttribute("viewBox", "0 0 100 100");\n' +
+'svg.setAttribute("width", "100");\n' +
+'svg.setAttribute("height", "100");\n\n' +
+'const circle = document.createElementNS(SVG_NS, "circle");\n' +
+'circle.setAttribute("cx", "50");\n' +
+'circle.setAttribute("cy", "50");\n' +
+'circle.setAttribute("r", "40");\n' +
+'circle.setAttribute("fill", "rebeccapurple");\n\n' +
+'svg.appendChild(circle);      // circle inside svg\n' +
+'figure.appendChild(svg);      // svg inside the HTML <figure>\n' +
+'document.body.appendChild(figure);\n\n' +
+'console.log("svg namespace:", svg.namespaceURI);\n' +
+'console.log("circle found:", figure.querySelector("svg circle") !== null);\n' +
+'return figure.outerHTML;\n' +
+'// <figure class="chart"><svg viewBox="0 0 100 100" width="100" height="100">\n' +
+'//   <circle cx="50" cy="50" r="40" fill="rebeccapurple"></circle></svg></figure>'
+  },
+  {
     name: "querySelectorAll",
     code:
 '// Parse markup, then query it with CSS selectors.\n' +
