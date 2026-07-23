@@ -1,0 +1,3518 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>worker-vdom &middot; API Reference</title>
+<meta name="description" content="API reference for worker-vdom, a lightweight, dependency-free virtual DOM for Web Workers." />
+<style>
+  /* ---------- Theme tokens ---------- */
+  :root {
+    --bg: #ffffff;
+    --bg-soft: #f7f8fa;
+    --bg-sunken: #f1f2f6;
+    --surface: #ffffff;
+    --border: #e4e6ec;
+    --border-strong: #d3d6e0;
+    --text: #1c2030;
+    --text-soft: #565d73;
+    --text-faint: #868da3;
+    --accent: #5b4be6;
+    --accent-soft: #efecff;
+    --accent-text: #4a3bd6;
+    --code-bg: #f5f4fb;
+    --code-border: #e6e3f5;
+    --shadow: 0 1px 2px rgba(20, 22, 40, .06), 0 8px 24px rgba(20, 22, 40, .06);
+    /* syntax */
+    --syn-key: #a626a4;
+    --syn-str: #328a3f;
+    --syn-com: #9aa0b0;
+    --syn-num: #b26a00;
+    --syn-api: #4a3bd6;
+    --scroll-margin: 84px;
+  }
+  :root[data-theme="dark"], :root.__dark {
+    --bg: #0f1117;
+    --bg-soft: #151824;
+    --bg-sunken: #1a1e2c;
+    --surface: #161a26;
+    --border: #262b3d;
+    --border-strong: #333a52;
+    --text: #e7e9f0;
+    --text-soft: #a5adc4;
+    --text-faint: #6f7690;
+    --accent: #8b7dff;
+    --accent-soft: #221f3d;
+    --accent-text: #b3a9ff;
+    --code-bg: #12141f;
+    --code-border: #262b3d;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+    --syn-key: #c792ea;
+    --syn-str: #8bd49c;
+    --syn-com: #6b7288;
+    --syn-num: #f0a35e;
+    --syn-api: #9db4ff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1117;
+      --bg-soft: #151824;
+      --bg-sunken: #1a1e2c;
+      --surface: #161a26;
+      --border: #262b3d;
+      --border-strong: #333a52;
+      --text: #e7e9f0;
+      --text-soft: #a5adc4;
+      --text-faint: #6f7690;
+      --accent: #8b7dff;
+      --accent-soft: #221f3d;
+      --accent-text: #b3a9ff;
+      --code-bg: #12141f;
+      --code-border: #262b3d;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+      --syn-key: #c792ea;
+      --syn-str: #8bd49c;
+      --syn-com: #6b7288;
+      --syn-num: #f0a35e;
+      --syn-api: #9db4ff;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent-text); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, pre, .mono { font-family: "SF Mono", ui-monospace, "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace; }
+
+  /* ---------- Header ---------- */
+  header.top {
+    position: sticky; top: 0; z-index: 40;
+    display: flex; align-items: center; gap: 14px;
+    height: 60px; padding: 0 20px;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter: saturate(160%) blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .brand { display: flex; align-items: center; gap: 11px; font-weight: 700; font-size: 16px; letter-spacing: -.01em; color: var(--text); }
+  .brand:hover { text-decoration: none; }
+  .brand .logo {
+    width: 30px; height: 30px; border-radius: 8px; flex: none;
+    display: grid; place-items: center;
+    background: linear-gradient(140deg, var(--accent), #8b7dff);
+    color: #fff; font-size: 15px; box-shadow: 0 2px 8px rgba(91,75,230,.35);
+  }
+  .brand .ver {
+    font-size: 11px; font-weight: 600; color: var(--accent-text);
+    background: var(--accent-soft); padding: 2px 7px; border-radius: 999px;
+  }
+  .top .spacer { flex: 1; }
+  .top .tagline { color: var(--text-faint); font-size: 13px; font-weight: 500; }
+  @media (max-width: 720px) { .top .tagline { display: none; } }
+  .icon-btn {
+    display: grid; place-items: center;
+    width: 38px; height: 38px; border-radius: 9px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text-soft);
+    cursor: pointer; transition: background .15s, color .15s, border-color .15s;
+  }
+  .icon-btn:hover { background: var(--bg-sunken); color: var(--text); }
+  .icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .icon-btn svg { width: 18px; height: 18px; }
+  #menuBtn { display: none; }
+  @media (max-width: 900px) { #menuBtn { display: grid; } }
+
+  /* ---------- Layout ---------- */
+  .layout { display: flex; align-items: flex-start; }
+  nav.sidebar {
+    position: sticky; top: 60px; align-self: flex-start;
+    width: 288px; flex: none;
+    height: calc(100vh - 60px);
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
+    background: var(--bg-soft);
+    padding: 18px 14px 60px;
+  }
+  .search-wrap { position: sticky; top: 0; z-index: 2; background: var(--bg-soft); padding-bottom: 12px; margin-bottom: 4px; }
+  .search-box { position: relative; }
+  .search-box svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: var(--text-faint); pointer-events: none; }
+  #search {
+    width: 100%; padding: 9px 30px 9px 33px;
+    border: 1px solid var(--border-strong); border-radius: 9px;
+    background: var(--surface); color: var(--text); font-size: 14px;
+  }
+  #search:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  #searchClear {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    border: none; background: none; color: var(--text-faint); cursor: pointer;
+    font-size: 17px; line-height: 1; padding: 4px; border-radius: 6px; display: none;
+  }
+  #searchClear:hover { color: var(--text); background: var(--bg-sunken); }
+
+  .nav-group { margin-top: 14px; }
+  .nav-group > .nav-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--text-faint); padding: 4px 10px; margin-bottom: 2px;
+  }
+  .nav-link {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px; border-radius: 8px;
+    color: var(--text-soft); font-size: 14px; font-weight: 500;
+    cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .nav-link:hover { background: var(--bg-sunken); color: var(--text); text-decoration: none; }
+  .nav-link.active { background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
+  .nav-link .kbadge {
+    font-size: 10px; font-weight: 700; width: 17px; height: 17px; flex: none;
+    display: grid; place-items: center; border-radius: 5px;
+    background: var(--bg-sunken); color: var(--text-faint);
+  }
+  .nav-link.active .kbadge { background: var(--accent); color: #fff; }
+  .nav-empty { padding: 20px 10px; color: var(--text-faint); font-size: 13px; display: none; }
+
+  /* ---------- Main ---------- */
+  main {
+    flex: 1; min-width: 0;
+    padding: 40px clamp(20px, 5vw, 64px) 120px;
+    max-width: 940px;
+  }
+  section.symbol { scroll-margin-top: var(--scroll-margin); margin-bottom: 64px; }
+  section.symbol.hidden, .member.hidden { display: none; }
+
+  .hero { margin-bottom: 44px; scroll-margin-top: var(--scroll-margin); }
+  .hero h1 { font-size: clamp(30px, 5vw, 42px); line-height: 1.1; letter-spacing: -.025em; margin: 8px 0 14px; }
+  .hero .lede { font-size: 18px; color: var(--text-soft); max-width: 660px; }
+  .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--accent-text); }
+
+  .sym-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 6px; scroll-margin-top: var(--scroll-margin); }
+  .sym-head h2 { font-size: 27px; letter-spacing: -.02em; margin: 0; }
+  .sym-kind {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+    padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border-strong); color: var(--text-soft);
+  }
+  .sym-kind.k-function { color: #0a7d5a; border-color: #a7e0cd; background: #e9f9f2; }
+  .sym-kind.k-class { color: #6a4bd6; border-color: #d3caf7; background: #efecff; }
+  .sym-kind.k-constant { color: #b26a00; border-color: #f0d6a8; background: #fdf3e2; }
+  .sym-kind.k-type { color: #1f6feb; border-color: #b9d3f7; background: #e8f1fe; }
+  :root[data-theme="dark"] .sym-kind.k-function, :root.__dark .sym-kind.k-function { color: #6ee0b0; border-color: #1f5a44; background: #0f2a20; }
+  :root[data-theme="dark"] .sym-kind.k-class, :root.__dark .sym-kind.k-class { color: #b3a9ff; border-color: #3a3470; background: #1e1a38; }
+  :root[data-theme="dark"] .sym-kind.k-constant, :root.__dark .sym-kind.k-constant { color: #f0b878; border-color: #5a4420; background: #2a2010; }
+  :root[data-theme="dark"] .sym-kind.k-type, :root.__dark .sym-kind.k-type { color: #8ab4f8; border-color: #2a4570; background: #12233d; }
+
+  .extends-note { font-size: 13px; color: var(--text-faint); margin: 0 0 14px; }
+  .extends-note code { color: var(--accent-text); }
+  .sym-desc { color: var(--text-soft); font-size: 15.5px; margin: 10px 0 22px; max-width: 720px; }
+  .sym-desc p { margin: 0 0 10px; }
+  .sym-desc code, .member-desc code, .extends-note code, .callout code, .members-title code {
+    background: var(--code-bg); border: 1px solid var(--code-border);
+    padding: 1px 5px; border-radius: 5px; font-size: .88em; color: var(--text);
+  }
+
+  .sig-block {
+    font-size: 14px; background: var(--code-bg); border: 1px solid var(--code-border);
+    border-radius: 10px; padding: 13px 15px; margin: 0 0 22px; overflow-x: auto; line-height: 1.7;
+  }
+
+  .members-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-faint); margin: 26px 0 12px; }
+
+  .member {
+    border: 1px solid var(--border); border-radius: 12px;
+    background: var(--surface); margin-bottom: 12px; overflow: hidden;
+    scroll-margin-top: var(--scroll-margin);
+  }
+  .member-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 10px; padding: 14px 16px 4px; }
+  .member-name { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-weight: 600; font-size: 15px; color: var(--text); }
+  .badge {
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    padding: 2px 7px; border-radius: 6px; line-height: 1.4;
+  }
+  .badge.b-method { background: #e8f1fe; color: #1f6feb; }
+  .badge.b-property { background: #e9f9f2; color: #0a7d5a; }
+  .badge.b-getter { background: #f3ecff; color: #7a4bd6; }
+  .badge.b-setter { background: #fdeef5; color: #c23b7e; }
+  .badge.b-static { background: #fdf3e2; color: #b26a00; }
+  .badge.b-readonly { background: var(--bg-sunken); color: var(--text-faint); }
+  :root[data-theme="dark"] .badge.b-method, :root.__dark .badge.b-method { background: #12233d; color: #8ab4f8; }
+  :root[data-theme="dark"] .badge.b-property, :root.__dark .badge.b-property { background: #0f2a20; color: #6ee0b0; }
+  :root[data-theme="dark"] .badge.b-getter, :root.__dark .badge.b-getter { background: #221a38; color: #c19bff; }
+  :root[data-theme="dark"] .badge.b-setter, :root.__dark .badge.b-setter { background: #33162a; color: #f08ac0; }
+  :root[data-theme="dark"] .badge.b-static, :root.__dark .badge.b-static { background: #2a2010; color: #f0b878; }
+
+  .member-sig { padding: 0 16px 4px; }
+  .member-sig code { font-size: 13px; color: var(--text-soft); }
+  .member-desc { padding: 6px 16px 16px; color: var(--text-soft); font-size: 14.5px; }
+  .member-desc p { margin: 0 0 8px; }
+  .member-desc p:last-child { margin-bottom: 0; }
+
+  /* ---------- Code blocks ---------- */
+  .code-wrap { position: relative; margin: 18px 0 22px; }
+  pre.code {
+    margin: 0; background: var(--code-bg); border: 1px solid var(--code-border);
+    border-radius: 12px; padding: 16px 18px; overflow-x: auto;
+    font-size: 13.5px; line-height: 1.65;
+  }
+  pre.code code { white-space: pre; }
+  .copy-btn {
+    position: absolute; top: 9px; right: 9px;
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; font-weight: 600;
+    padding: 5px 9px; border-radius: 7px;
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-soft);
+    cursor: pointer; opacity: 0; transition: opacity .15s, background .15s, color .15s;
+  }
+  .code-wrap:hover .copy-btn, .copy-btn:focus-visible { opacity: 1; }
+  .copy-btn:hover { background: var(--bg-sunken); color: var(--text); }
+  .copy-btn.copied { color: #0a7d5a; border-color: #a7e0cd; }
+  :root[data-theme="dark"] .copy-btn.copied, :root.__dark .copy-btn.copied { color: #6ee0b0; border-color: #1f5a44; }
+  .copy-btn svg { width: 13px; height: 13px; }
+
+  /* syntax tokens */
+  .tok-key { color: var(--syn-key); }
+  .tok-str { color: var(--syn-str); }
+  .tok-com { color: var(--syn-com); font-style: italic; }
+  .tok-num { color: var(--syn-num); }
+  .tok-api { color: var(--syn-api); font-weight: 600; }
+
+  /* ---------- Callout ---------- */
+  .callout {
+    border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    background: var(--bg-soft); border-radius: 10px; padding: 15px 18px; margin: 22px 0;
+    font-size: 14.5px; color: var(--text-soft);
+  }
+  .callout strong { color: var(--text); }
+  .callout .callout-title { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .callout ul { margin: 8px 0 0; padding-left: 20px; }
+  .callout li { margin: 3px 0; }
+  .pill-row { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+  .pill { font-size: 12.5px; font-weight: 500; padding: 3px 10px; border-radius: 999px; background: var(--bg-sunken); color: var(--text-soft); border: 1px solid var(--border); }
+  .pill.no { text-decoration: line-through; color: var(--text-faint); }
+
+  /* constants + types tables */
+  .const-table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 4px 0 22px; display: block; overflow-x: auto; }
+  .const-table th, .const-table td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .const-table thead th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-faint); border-bottom: 1px solid var(--border-strong); white-space: nowrap; }
+  .const-table td code { background: var(--code-bg); border: 1px solid var(--code-border); padding: 1px 6px; border-radius: 5px; font-size: 12.5px; white-space: nowrap; }
+  .const-table td.desc { color: var(--text-soft); }
+
+  footer {
+    border-top: 1px solid var(--border); margin-top: 40px;
+    padding: 28px clamp(20px, 5vw, 64px);
+    color: var(--text-faint); font-size: 13.5px;
+  }
+  footer a { color: var(--text-soft); }
+
+  /* ---------- Interactive: playground + benchmarks ---------- */
+  .pg-presets { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+  .pg-preset {
+    font-size: 13px; font-weight: 600; padding: 6px 12px; border-radius: 8px;
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-soft); cursor: pointer;
+  }
+  .pg-preset:hover { background: var(--bg-sunken); color: var(--text); }
+  .pg-preset:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  textarea.pg-code {
+    width: 100%; min-height: 240px; resize: vertical; display: block;
+    font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 13.5px; line-height: 1.6; padding: 15px 16px; tab-size: 2;
+    border: 1px solid var(--code-border); border-radius: 12px 12px 0 0;
+    background: var(--code-bg); color: var(--text);
+  }
+  textarea.pg-code:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .pg-toolbar {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    border: 1px solid var(--code-border); border-top: none; border-radius: 0 0 12px 12px; background: var(--bg-soft);
+  }
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 600;
+    padding: 8px 16px; border-radius: 9px; border: 1px solid transparent;
+    background: var(--accent); color: #fff; cursor: pointer;
+  }
+  .btn-primary:hover { filter: brightness(1.07); }
+  .btn-primary:disabled { opacity: .55; cursor: progress; }
+  .btn-primary:focus-visible, .btn-ghost:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn-primary svg { width: 15px; height: 15px; }
+  .btn-ghost {
+    font-size: 13px; font-weight: 600; padding: 8px 12px; border-radius: 9px;
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-soft); cursor: pointer;
+  }
+  .btn-ghost:hover { background: var(--bg-sunken); color: var(--text); }
+  .io-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-faint); margin: 18px 0 8px; }
+  pre.pg-output {
+    margin: 0; min-height: 64px; background: var(--code-bg); border: 1px solid var(--code-border);
+    border-radius: 12px; padding: 14px 16px; overflow-x: auto;
+    font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; color: var(--text);
+  }
+  pre.pg-output .log { color: var(--text); }
+  pre.pg-output .err { color: #d13438; }
+  pre.pg-output .muted { color: var(--text-faint); }
+  :root[data-theme="dark"] pre.pg-output .err, :root.__dark pre.pg-output .err { color: #ff7b72; }
+
+  .bm-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 4px 0 16px; }
+  .bm-controls label { font-size: 14px; color: var(--text-soft); font-weight: 500; }
+  .bm-controls input {
+    width: 118px; padding: 8px 10px; border: 1px solid var(--border-strong);
+    border-radius: 8px; background: var(--surface); color: var(--text); font-size: 14px;
+  }
+  .bm-controls input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .bm-status { font-size: 13.5px; color: var(--text-soft); min-height: 22px; margin: 4px 0 10px; display: flex; align-items: center; gap: 9px; }
+  .spinner { width: 14px; height: 14px; border: 2px solid var(--border-strong); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .bm-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+  .bm-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .bm-table th, .bm-table td { text-align: left; padding: 10px 13px; border-bottom: 1px solid var(--border); }
+  .bm-table tr:last-child td { border-bottom: none; }
+  .bm-table thead th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-faint); background: var(--bg-soft); }
+  .bm-table td.op { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; color: var(--text); white-space: nowrap; }
+  .bm-table td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; color: var(--text-soft); white-space: nowrap; }
+  .bm-bar-cell { width: 24%; min-width: 110px; }
+  .bm-bar-track { background: var(--bg-sunken); border-radius: 6px; height: 9px; overflow: hidden; }
+  .bm-bar-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), #8b7dff); border-radius: 6px; transition: width .35s ease; }
+  .bm-row-running td { opacity: .5; }
+  @media (prefers-reduced-motion: reduce) { .bm-bar-fill { transition: none; } .spinner { animation: none; } }
+
+  /* ---------- Mobile sidebar ---------- */
+  .backdrop { display: none; }
+  @media (max-width: 900px) {
+    nav.sidebar {
+      position: fixed; top: 60px; left: 0; z-index: 35;
+      transform: translateX(-100%); transition: transform .22s ease;
+      box-shadow: var(--shadow); width: 300px;
+    }
+    body.nav-open nav.sidebar { transform: translateX(0); }
+    body.nav-open .backdrop {
+      display: block; position: fixed; inset: 60px 0 0 0; z-index: 30;
+      background: rgba(10,12,20,.4);
+    }
+    main { padding-top: 28px; }
+  }
+
+  /* Skip link */
+  .skip-link {
+    position: absolute; left: -999px; top: 8px; z-index: 100;
+    background: var(--accent); color: #fff; padding: 8px 14px; border-radius: 8px;
+  }
+  .skip-link:focus { left: 12px; }
+</style>
+</head>
+<body>
+<a href="#top" class="skip-link">Skip to content</a>
+<header class="top">
+  <button id="menuBtn" class="icon-btn" aria-label="Toggle navigation" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+  <a href="#top" class="brand">
+    <span class="logo" aria-hidden="true">&lt;/&gt;</span>
+    <span>worker-vdom</span>
+    <span class="ver">API</span>
+  </a>
+  <span class="spacer"></span>
+  <span class="tagline">A virtual DOM for Web Workers</span>
+  <button id="themeBtn" class="icon-btn" aria-label="Toggle color theme">
+    <svg id="iconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    <svg id="iconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+  </button>
+</header>
+
+<div class="layout">
+  <div class="backdrop" id="backdrop"></div>
+  <nav class="sidebar" aria-label="API navigation">
+    <div class="search-wrap">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="search" type="search" placeholder="Filter symbols &amp; members&hellip;" aria-label="Filter symbols and members" autocomplete="off" spellcheck="false" />
+        <button id="searchClear" aria-label="Clear filter">&times;</button>
+      </div>
+    </div>
+    <div id="navList"></div>
+    <div class="nav-empty" id="navEmpty">No matches found.</div>
+  </nav>
+
+  <main id="top">
+    <div id="content"></div>
+    <div class="hero" style="margin:0" hidden></div>
+  </main>
+</div>
+
+<footer>
+  Generated API reference for <strong>worker-vdom</strong> &mdash; a lightweight, dependency-free virtual DOM for Web Workers.
+  Documents only the supported public API. MIT licensed.
+</footer>
+
+<script>
+/* ============================================================
+   worker-vdom API reference — data-driven renderer
+   All content below is derived directly from the library source.
+   ============================================================ */
+
+/* ---------- lightweight TS/JS syntax highlighter ---------- */
+var API_NAMES = ["createDocument","serialize","serializeHTML","serializeXML","parseFragment",
+  "VDocument","VNode","VElement","VText","VComment","VCharacterData","VDocumentFragment",
+  "VDocumentType","DOMTokenList","DOMException","createElement","createElementNS","createTextNode",
+  "createComment","createDocumentFragment","createDocumentType","appendChild","insertBefore",
+  "querySelector","querySelectorAll","getElementById","setAttribute","setAttributeNS","getAttribute",
+  "outerHTML","innerHTML","classList","dataset","documentElement","postMessage","importNode","adoptNode",
+  "cloneNode","toggleAttribute","closest","matches","replaceChildren","textContent"];
+var KEYWORDS = ["const","let","var","function","return","new","import","from","export","default",
+  "if","else","for","of","in","while","await","async","class","extends","true","false","null",
+  "undefined","typeof","instanceof","void","this","self","throw","try","catch"];
+
+function escapeHtml(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function highlight(src){
+  var esc = escapeHtml(src);
+  var kw = new RegExp("\\b(" + KEYWORDS.join("|") + ")\\b");
+  var api = new RegExp("\\b(" + API_NAMES.join("|") + ")\\b");
+  // Single left-to-right pass: comments, strings, keywords, api names, numbers.
+  var STR = "`(?:\\\\.|[^`\\\\])*`|\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'";
+  var re = new RegExp("(//[^\\n]*)|(" + STR + ")|\\b(?:" + KEYWORDS.join("|") + ")\\b|\\b\\d+(?:\\.\\d+)?\\b|[A-Za-z_$][\\w$]*", "g");
+  return esc.replace(re, function(m){
+    if (m.slice(0,2) === "//") return '<span class="tok-com">' + m + '</span>';
+    if (m[0] === '"' || m[0] === "'" || m[0] === "`") return '<span class="tok-str">' + m + '</span>';
+    if (kw.test(m)) return '<span class="tok-key">' + m + '</span>';
+    if (/^\d/.test(m)) return '<span class="tok-num">' + m + '</span>';
+    if (api.test(m)) return '<span class="tok-api">' + m + '</span>';
+    return m;
+  });
+}
+
+/* ---------- data model ---------- */
+/* member.k: method | property | getter | setter | static-method */
+function m(k, name, sig, desc, extra){ return Object.assign({k:k, name:name, sig:sig, desc:desc}, extra||{}); }
+
+var GROUPS = [
+  {
+    id: "getting-started", title: "Getting Started",
+    symbols: [{ id: "getting-started-sym", nav: "Overview", kbadge: "i", custom: true }]
+  },
+  {
+    id: "interactive", title: "Interactive",
+    symbols: [
+      { id: "playground", nav: "Playground", kbadge: "P", custom: true },
+      { id: "benchmarks", nav: "Benchmarks", kbadge: "B", custom: true }
+    ]
+  },
+  {
+    id: "functions", title: "Functions",
+    symbols: [
+      {
+        id: "createDocument", kind: "function", nav: "createDocument", kbadge: "f",
+        signature: "function createDocument(options?: CreateDocumentOptions): VDocument",
+        desc: "<p>Creates a new, fully isolated document &mdash; the entry point you reach for first. In the default <code>\"html\"</code> mode the returned document is pre-populated with a <code>&lt;!DOCTYPE html&gt;</code> and an <code>&lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body&gt;&lt;/body&gt;&lt;/html&gt;</code> tree, and element/attribute names are treated case-insensitively. In <code>\"xml\"</code> mode the document starts empty and preserves case.</p>",
+        snippet: 'import { createDocument } from "worker-vdom";\n\nconst document = createDocument();\nconsole.log(document.body.tagName); // "BODY"\n\nconst xml = createDocument({ mode: "xml" });\nconsole.log(xml.documentElement); // null (starts empty)'
+      },
+      {
+        id: "serialize", kind: "function", nav: "serialize", kbadge: "f",
+        signature: "function serialize(node: VNode, options?: SerializeOptions): string",
+        desc: "<p>Serializes a node <em>including itself</em> to a markup string (equivalent to <code>outerHTML</code>). Uses HTML rules by default; pass <code>{ xml: true }</code> for XML serialization (self-closing empty tags and stricter escaping).</p>",
+        snippet: 'import { createDocument, serialize } from "worker-vdom";\n\nconst document = createDocument();\nconst p = document.createElement("p");\np.textContent = "Hello";\ndocument.body.appendChild(p);\n\nserialize(document.body);              // "<body><p>Hello</p></body>"\nserialize(p, { xml: true });           // "<p>Hello</p>"'
+      },
+      {
+        id: "serializeHTML", kind: "function", nav: "serializeHTML", kbadge: "f",
+        signature: "function serializeHTML(node: VNode): string",
+        desc: "<p>Convenience wrapper that always serializes with HTML rules (equivalent to <code>serialize(node, { xml: false })</code>). Void elements such as <code>&lt;br&gt;</code> and <code>&lt;img&gt;</code> render without a closing tag.</p>",
+        snippet: 'import { createDocument, serializeHTML } from "worker-vdom";\n\nconst document = createDocument();\nconst img = document.createElement("img");\nimg.setAttribute("src", "logo.png");\nserializeHTML(img); // \'<img src="logo.png">\''
+      },
+      {
+        id: "serializeXML", kind: "function", nav: "serializeXML", kbadge: "f",
+        signature: "function serializeXML(node: VNode): string",
+        desc: "<p>Convenience wrapper that always serializes with XML rules (equivalent to <code>serialize(node, { xml: true })</code>). Empty elements self-close and <code>&lt;</code> is escaped inside attribute values.</p>",
+        snippet: 'import { createDocument, serializeXML, SVG_NS } from "worker-vdom";\n\nconst document = createDocument({ mode: "xml" });\nconst circle = document.createElementNS(SVG_NS, "circle");\ncircle.setAttribute("r", "10");\nserializeXML(circle); // \'<circle r="10"/>\''
+      },
+      {
+        id: "parseFragment", kind: "function", nav: "parseFragment", kbadge: "f",
+        signature: "function parseFragment(html: string, ownerDocument: VDocument, context?: VElement | null): VDocumentFragment",
+        desc: "<p>Parses an HTML/XML fragment into a <code>VDocumentFragment</code> owned by <code>ownerDocument</code>. When a <code>context</code> element is given, its namespace becomes the default namespace for parsed children (so parsing into an <code>&lt;svg&gt;</code> yields SVG elements). Handles nested elements, text, comments, quoted/boolean/unquoted attributes, self-closing syntax, void elements, entities and raw text. This is a practical subset of the WHATWG parser &mdash; it does not reproduce every error-recovery rule.</p><p>You will usually reach this indirectly through <code>element.innerHTML =</code> or <code>insertAdjacentHTML()</code>.</p>",
+        snippet: 'import { createDocument, parseFragment } from "worker-vdom";\n\nconst document = createDocument();\nconst frag = parseFragment("<li>One</li><li>Two</li>", document);\nconst ul = document.createElement("ul");\nul.appendChild(frag);\nul.outerHTML; // "<ul><li>One</li><li>Two</li></ul>"'
+      }
+    ]
+  },
+  {
+    id: "classes", title: "Classes",
+    symbols: [
+      {
+        id: "VNode", kind: "class", nav: "VNode", kbadge: "C", abstract: true,
+        signature: "abstract class VNode",
+        desc: "<p>The abstract base class for every node in the tree. All concrete node types extend it, so its members are available everywhere. Sibling relationships are derived from the parent's child array rather than stored as pointers.</p>",
+        members: [
+          m("property","nodeType","readonly nodeType: number","DOM-compatible numeric node type (for example <code>1</code> for elements, <code>3</code> for text). See the Node types constants.",{ro:true}),
+          m("getter","nodeName","get nodeName(): string","DOM node name, such as <code>\"#text\"</code> or <code>\"DIV\"</code>."),
+          m("getter","nodeValue","get / set nodeValue: string | null","The node's value. <code>null</code> for elements and documents; the character data for text and comment nodes. Setting on a valueless node is a no-op.",{setter:true}),
+          m("getter","ownerDocument","get ownerDocument(): VDocument | null","The document that created this node, or <code>null</code>."),
+          m("getter","parentNode","get parentNode(): VNode | null","The parent node, or <code>null</code> if unattached."),
+          m("getter","parentElement","get parentElement(): VElement | null","The parent, but only when it is an element; otherwise <code>null</code>."),
+          m("getter","childNodes","get childNodes(): NodeListLike<VNode>","A <strong>static snapshot</strong> list of all child nodes (see the note on collections)."),
+          m("getter","firstChild","get firstChild(): VNode | null","The first child node, or <code>null</code>."),
+          m("getter","lastChild","get lastChild(): VNode | null","The last child node, or <code>null</code>."),
+          m("getter","previousSibling","get previousSibling(): VNode | null","The preceding sibling node, or <code>null</code>."),
+          m("getter","nextSibling","get nextSibling(): VNode | null","The following sibling node, or <code>null</code>."),
+          m("getter","isConnected","get isConnected(): boolean","<code>true</code> when the node's root is a document."),
+          m("getter","textContent","get / set textContent: string | null","Concatenated descendant text for elements/fragments. Setting it replaces all children with a single text node.",{setter:true}),
+          m("method","hasChildNodes","hasChildNodes(): boolean","Returns <code>true</code> when the node has at least one child."),
+          m("method","appendChild","appendChild<T extends VNode>(child: T): T","Appends <code>child</code> as the last child and returns it. Fragments are flattened; a node with an existing parent is moved."),
+          m("method","insertBefore","insertBefore<T extends VNode>(node: T, reference: VNode | null): T","Inserts <code>node</code> before <code>reference</code> (or at the end when <code>reference</code> is <code>null</code>) and returns the inserted node."),
+          m("method","removeChild","removeChild<T extends VNode>(child: T): T","Removes <code>child</code> and returns it. Throws <code>NotFoundError</code> if it is not a child."),
+          m("method","replaceChild","replaceChild<T extends VNode>(newChild: VNode, oldChild: T): T","Replaces <code>oldChild</code> with <code>newChild</code> and returns the removed <code>oldChild</code>."),
+          m("method","remove","remove(): void","Detaches this node from its parent, if any."),
+          m("method","contains","contains(other: VNode | null): boolean","Returns <code>true</code> if <code>other</code> is this node or a descendant of it."),
+          m("method","cloneNode","cloneNode(deep?: boolean): VNode","Clones the node. When <code>deep</code> is <code>true</code>, the whole subtree is copied."),
+          m("method","before","before(...nodes: Array<VNode | string>): void","Inserts nodes/strings just before this node. Strings become text nodes."),
+          m("method","after","after(...nodes: Array<VNode | string>): void","Inserts nodes/strings just after this node."),
+          m("method","replaceWith","replaceWith(...nodes: Array<VNode | string>): void","Replaces this node with the given nodes/strings."),
+          m("method","append","append(...nodes: Array<VNode | string>): void","Appends nodes/strings as the last children."),
+          m("method","prepend","prepend(...nodes: Array<VNode | string>): void","Inserts nodes/strings as the first children."),
+          m("method","replaceChildren","replaceChildren(...nodes: Array<VNode | string>): void","Replaces all existing children with the given nodes/strings.")
+        ],
+        snippet: 'const document = createDocument();\nconst list = document.createElement("ul");\nconst a = document.createElement("li");\nconst b = document.createElement("li");\n\nlist.append(a, b);        // append accepts multiple nodes\nb.before("in between");   // strings become text nodes\nlist.contains(a);         // true\na.remove();               // detach'
+      },
+      {
+        id: "VDocument", kind: "class", nav: "VDocument", kbadge: "C", ext: "VNode",
+        signature: "class VDocument extends VNode",
+        desc: "<p>The document node returned by <code>createDocument()</code>. It is the factory for every other node and the root of the tree. <code>nodeType</code> is <code>9</code> and <code>nodeName</code> is <code>\"#document\"</code>.</p>",
+        members: [
+          m("property","mode",'readonly mode: DocumentMode','Either <code>"html"</code> or <code>"xml"</code> &mdash; the mode this document was created with.',{ro:true}),
+          m("getter","documentElement","get documentElement(): VElement | null","The root element (<code>&lt;html&gt;</code> in HTML mode), or <code>null</code>."),
+          m("getter","doctype","get doctype(): VDocumentType | null","The document's <code>&lt;!DOCTYPE&gt;</code> node, or <code>null</code>."),
+          m("getter","head","get head(): VElement | null","The <code>&lt;head&gt;</code> element, or <code>null</code>."),
+          m("getter","body","get body(): VElement | null","The <code>&lt;body&gt;</code> (or <code>&lt;frameset&gt;</code>) element, or <code>null</code>."),
+          m("method","createElement","createElement(tagName: string): VElement","Creates an element in the HTML namespace (name lower-cased in HTML mode)."),
+          m("method","createElementNS","createElementNS(namespaceURI: string | null, qualifiedName: string): VElement","Creates a namespaced element, parsing an optional <code>prefix:localName</code>."),
+          m("method","createTextNode","createTextNode(data: string): VText","Creates a text node."),
+          m("method","createComment","createComment(data: string): VComment","Creates a comment node."),
+          m("method","createDocumentFragment","createDocumentFragment(): VDocumentFragment","Creates an empty document fragment."),
+          m("method","createDocumentType","createDocumentType(name: string, publicId?: string, systemId?: string): VDocumentType","Creates a doctype node."),
+          m("method","importNode","importNode<T extends VNode>(node: T, deep?: boolean): T","Returns a clone of <code>node</code> re-owned by this document. Throws <code>NotSupportedError</code> for document nodes."),
+          m("method","adoptNode","adoptNode<T extends VNode>(node: T): T","Detaches <code>node</code> from its current tree and re-owns it (and its subtree) into this document."),
+          m("method","getElementById","getElementById(id: string): VElement | null","Returns the first descendant element whose <code>id</code> matches, or <code>null</code>."),
+          m("method","querySelector","querySelector(selector: string): VElement | null","Returns the first descendant element matching the CSS selector, or <code>null</code>."),
+          m("method","querySelectorAll","querySelectorAll(selector: string): NodeListLike<VElement>","Returns a static list of all descendant elements matching the selector.")
+        ],
+        snippet: 'import { createDocument, SVG_NS } from "worker-vdom";\n\nconst document = createDocument();\nconst svg = document.createElementNS(SVG_NS, "svg");\nconst circle = document.createElementNS(SVG_NS, "circle");\ncircle.setAttribute("r", "20");\nsvg.appendChild(circle);\ndocument.body.appendChild(svg);\n\ndocument.querySelector("svg circle").getAttribute("r"); // "20"'
+      },
+      {
+        id: "VElement", kind: "class", nav: "VElement", kbadge: "C", ext: "VNode",
+        signature: "class VElement extends VNode",
+        desc: "<p>An element node (<code>nodeType === 1</code>). Carries attributes, class and data maps, element-only traversal, HTML (de)serialization and CSS selector matching. In HTML documents, element and attribute names behave case-insensitively.</p>",
+        members: [
+          m("property","tagName","get tagName(): string","Qualified name, upper-cased for HTML elements (for example <code>\"DIV\"</code>)."),
+          m("property","localName","readonly localName: string","The local part of the element's name.",{ro:true}),
+          m("property","prefix","readonly prefix: string | null","The namespace prefix, or <code>null</code>.",{ro:true}),
+          m("property","namespaceURI","readonly namespaceURI: string | null","The element's namespace URI, or <code>null</code>.",{ro:true}),
+          m("getter","id","get / set id: string","Reflects the <code>id</code> attribute.",{setter:true}),
+          m("getter","className","get / set className: string","Reflects the <code>class</code> attribute as a string.",{setter:true}),
+          m("getter","classList","get classList(): DOMTokenList","A live <code>DOMTokenList</code> view of the <code>class</code> attribute."),
+          m("getter","dataset","get dataset(): DOMStringMap","A proxy mapping <code>data-*</code> attributes to camelCase keys (<code>data-foo-bar</code> &harr; <code>fooBar</code>)."),
+          m("getter","attributes","get attributes(): NamedNodeMapLike","A static snapshot map of the element's attributes."),
+          m("getter","children","get children(): HTMLCollectionLike<VElement>","A static snapshot of child <em>elements</em> only."),
+          m("getter","childElementCount","get childElementCount(): number","The number of child elements."),
+          m("getter","firstElementChild","get firstElementChild(): VElement | null","The first child element, or <code>null</code>."),
+          m("getter","lastElementChild","get lastElementChild(): VElement | null","The last child element, or <code>null</code>."),
+          m("getter","previousElementSibling","get previousElementSibling(): VElement | null","The previous sibling element, or <code>null</code>."),
+          m("getter","nextElementSibling","get nextElementSibling(): VElement | null","The next sibling element, or <code>null</code>."),
+          m("getter","innerHTML","get / set innerHTML: string","Serializes or parses the element's children as markup.",{setter:true}),
+          m("getter","outerHTML","get / set outerHTML: string","Serializes the element and its children; setting replaces the element in its parent (throws <code>SyntaxError</code> if there is no parent).",{setter:true}),
+          m("method","getAttribute","getAttribute(name: string): string | null","Returns the attribute value, or <code>null</code>."),
+          m("method","getAttributeNS","getAttributeNS(namespace: string | null, localName: string): string | null","Returns a namespaced attribute's value, or <code>null</code>."),
+          m("method","setAttribute","setAttribute(name: string, value: unknown): void","Sets an attribute; the value is coerced to a string. Throws <code>InvalidCharacterError</code> on an invalid name."),
+          m("method","setAttributeNS","setAttributeNS(namespace: string | null, qualifiedName: string, value: unknown): void","Sets a namespaced attribute."),
+          m("method","removeAttribute","removeAttribute(name: string): void","Removes the named attribute."),
+          m("method","removeAttributeNS","removeAttributeNS(namespace: string | null, localName: string): void","Removes a namespaced attribute."),
+          m("method","hasAttribute","hasAttribute(name: string): boolean","Returns <code>true</code> if the attribute is present."),
+          m("method","hasAttributeNS","hasAttributeNS(namespace: string | null, localName: string): boolean","Returns <code>true</code> if the namespaced attribute is present."),
+          m("method","hasAttributes","hasAttributes(): boolean","Returns <code>true</code> if the element has any attributes."),
+          m("method","getAttributeNames","getAttributeNames(): string[]","Returns the qualified names of all attributes in order."),
+          m("method","toggleAttribute","toggleAttribute(name: string, force?: boolean): boolean","Toggles a boolean attribute; <code>force</code> pins it on/off. Returns the resulting presence."),
+          m("method","insertAdjacentHTML","insertAdjacentHTML(position: InsertPosition, html: string): void","Parses <code>html</code> and inserts it at the given position relative to the element."),
+          m("method","insertAdjacentElement","insertAdjacentElement(position: InsertPosition, element: VElement): VElement | null","Inserts an existing element at the given position and returns it."),
+          m("method","insertAdjacentText","insertAdjacentText(position: InsertPosition, text: string): void","Inserts a text node at the given position."),
+          m("method","matches","matches(selector: string): boolean","Returns <code>true</code> if the element matches the CSS selector."),
+          m("method","closest","closest(selector: string): VElement | null","Returns the nearest ancestor (including self) matching the selector, or <code>null</code>."),
+          m("method","querySelector","querySelector(selector: string): VElement | null","Returns the first matching descendant element, or <code>null</code>."),
+          m("method","querySelectorAll","querySelectorAll(selector: string): NodeListLike<VElement>","Returns a static list of all matching descendant elements.")
+        ],
+        snippet: 'const document = createDocument();\nconst card = document.createElement("div");\n\ncard.className = "card";\ncard.classList.add("card--wide");\ncard.dataset.userId = "42";          // sets data-user-id="42"\ncard.setAttribute("role", "region");\ncard.innerHTML = "<h2>Title</h2><p>Body</p>";\n\ncard.querySelector("h2").textContent;   // "Title"\ncard.matches(".card.card--wide");       // true\ncard.outerHTML;\n// \'<div class="card card--wide" data-user-id="42" role="region"><h2>Title</h2><p>Body</p></div>\''
+      },
+      {
+        id: "VCharacterData", kind: "class", nav: "VCharacterData", kbadge: "C", ext: "VNode", abstract: true,
+        signature: "abstract class VCharacterData extends VNode",
+        desc: "<p>The shared abstract base for <code>VText</code> and <code>VComment</code>. Holds the string content and implements the small slice of the <code>CharacterData</code> interface used by the library.</p>",
+        members: [
+          m("property","data","data: string","The string content of the node."),
+          m("getter","length","get length(): number","The number of characters in <code>data</code>."),
+          m("getter","nodeValue","get / set nodeValue: string | null","Reads/writes <code>data</code> (overrides the base <code>VNode</code> getter).",{setter:true}),
+          m("getter","textContent","get / set textContent: string | null","Reads/writes <code>data</code>.",{setter:true}),
+          m("method","appendData","appendData(data: string): void","Appends the given string to <code>data</code>.")
+        ]
+      },
+      {
+        id: "VText", kind: "class", nav: "VText", kbadge: "C", ext: "VCharacterData",
+        signature: "class VText extends VCharacterData",
+        desc: "<p>A text node (<code>nodeType === 3</code>, <code>nodeName === \"#text\"</code>). Created with <code>document.createTextNode()</code>.</p>",
+        members: [
+          m("getter","wholeText","get wholeText(): string","DOM alias returning the node's text content.")
+        ],
+        snippet: 'const document = createDocument();\nconst text = document.createTextNode("Hello");\ntext.appendData(", world");\ntext.wholeText;    // "Hello, world"\ntext.length;       // 12'
+      },
+      {
+        id: "VComment", kind: "class", nav: "VComment", kbadge: "C", ext: "VCharacterData",
+        signature: "class VComment extends VCharacterData",
+        desc: "<p>A comment node (<code>nodeType === 8</code>, <code>nodeName === \"#comment\"</code>). Created with <code>document.createComment()</code>. Serializes as <code>&lt;!--&hellip;--&gt;</code>.</p>",
+        members: []
+      },
+      {
+        id: "VDocumentFragment", kind: "class", nav: "VDocumentFragment", kbadge: "C", ext: "VNode",
+        signature: "class VDocumentFragment extends VNode",
+        desc: "<p>A lightweight container (<code>nodeType === 11</code>, <code>nodeName === \"#document-fragment\"</code>). When inserted into the tree, its children move in its place while the fragment itself stays empty &mdash; ideal for batching insertions.</p>",
+        members: [],
+        snippet: 'const document = createDocument();\nconst frag = document.createDocumentFragment();\nfor (const name of ["Home", "About"]) {\n  const a = document.createElement("a");\n  a.textContent = name;\n  frag.appendChild(a);\n}\ndocument.body.appendChild(frag); // both links inserted at once'
+      },
+      {
+        id: "VDocumentType", kind: "class", nav: "VDocumentType", kbadge: "C", ext: "VNode",
+        signature: "class VDocumentType extends VNode",
+        desc: "<p>A doctype node (<code>nodeType === 10</code>). Its <code>nodeName</code> is the doctype name. Created with <code>document.createDocumentType()</code>.</p>",
+        members: [
+          m("property","name","readonly name: string","The doctype name, for example <code>\"html\"</code>.",{ro:true}),
+          m("property","publicId","readonly publicId: string","The public identifier (empty string when absent).",{ro:true}),
+          m("property","systemId","readonly systemId: string","The system identifier (empty string when absent).",{ro:true})
+        ]
+      },
+      {
+        id: "DOMTokenList", kind: "class", nav: "DOMTokenList", kbadge: "C",
+        signature: "class DOMTokenList implements Iterable<string>",
+        desc: "<p>Backs <code>element.classList</code>. It never caches state: each read parses the <code>class</code> attribute and each write serializes back, so it stays perfectly synchronized. It is iterable.</p>",
+        members: [
+          m("getter","length","get length(): number","The number of tokens."),
+          m("getter","value","get / set value: string","The whole attribute string.",{setter:true}),
+          m("method","item","item(index: number): string | null","Returns the token at <code>index</code>, or <code>null</code>."),
+          m("method","contains","contains(token: string): boolean","Returns <code>true</code> if the token is present."),
+          m("method","add","add(...tokens: string[]): void","Adds one or more tokens. Throws on empty or whitespace-containing tokens."),
+          m("method","remove","remove(...tokens: string[]): void","Removes one or more tokens."),
+          m("method","toggle","toggle(token: string, force?: boolean): boolean","Toggles a token; <code>force</code> pins it. Returns the resulting presence."),
+          m("method","replace","replace(oldToken: string, newToken: string): boolean","Replaces <code>oldToken</code> with <code>newToken</code>. Returns <code>true</code> if a replacement occurred."),
+          m("method","toString","toString(): string","Returns the underlying attribute string."),
+          m("method","[Symbol.iterator]","[Symbol.iterator](): IterableIterator<string>","Iterates over the tokens (enables <code>for&hellip;of</code> and spread).")
+        ],
+        snippet: 'const document = createDocument();\nconst el = document.createElement("div");\n\nel.classList.add("btn", "btn--primary");\nel.classList.toggle("is-active");        // -> true\nel.classList.replace("btn--primary", "btn--ghost");\nel.classList.contains("btn");            // true\n[...el.classList];                       // ["btn", "is-active", "btn--ghost"]'
+      }
+    ]
+  },
+  {
+    id: "constants", title: "Constants",
+    symbols: [
+      {
+        id: "node-types", kind: "constant", nav: "Node types", kbadge: "N", custom: true,
+        signature: "export const ELEMENT_NODE = 1 // …",
+        desc: "<p>DOM-compatible numeric node-type values, mirroring the browser DOM so code written against <code>Node.ELEMENT_NODE</code> behaves identically.</p>",
+        table: {
+          head: ["Constant", "Value", "Used by"],
+          rows: [
+            ["ELEMENT_NODE", "1", "VElement"],
+            ["ATTRIBUTE_NODE", "2", "(attribute records)"],
+            ["TEXT_NODE", "3", "VText"],
+            ["CDATA_SECTION_NODE", "4", "&mdash;"],
+            ["PROCESSING_INSTRUCTION_NODE", "7", "&mdash;"],
+            ["COMMENT_NODE", "8", "VComment"],
+            ["DOCUMENT_NODE", "9", "VDocument"],
+            ["DOCUMENT_TYPE_NODE", "10", "VDocumentType"],
+            ["DOCUMENT_FRAGMENT_NODE", "11", "VDocumentFragment"]
+          ]
+        },
+        snippet: 'import { ELEMENT_NODE, TEXT_NODE } from "worker-vdom";\n\nfunction describe(node) {\n  if (node.nodeType === ELEMENT_NODE) return "element";\n  if (node.nodeType === TEXT_NODE) return "text";\n  return "other";\n}'
+      },
+      {
+        id: "namespaces", kind: "constant", nav: "Namespaces", kbadge: "N", custom: true,
+        signature: "export const SVG_NS = \"http://www.w3.org/2000/svg\" // …",
+        desc: "<p>Well-known namespace URIs for use with <code>createElementNS</code> and <code>setAttributeNS</code>.</p>",
+        table: {
+          head: ["Constant", "URI"],
+          rows: [
+            ["HTML_NS", "http://www.w3.org/1999/xhtml"],
+            ["SVG_NS", "http://www.w3.org/2000/svg"],
+            ["MATHML_NS", "http://www.w3.org/1998/Math/MathML"],
+            ["XML_NS", "http://www.w3.org/XML/1998/namespace"],
+            ["XMLNS_NS", "http://www.w3.org/2000/xmlns/"],
+            ["XLINK_NS", "http://www.w3.org/1999/xlink"]
+          ]
+        },
+        snippet: 'import { createDocument, SVG_NS, XLINK_NS } from "worker-vdom";\n\nconst document = createDocument();\nconst use = document.createElementNS(SVG_NS, "use");\nuse.setAttributeNS(XLINK_NS, "xlink:href", "#icon");'
+      }
+    ]
+  },
+  {
+    id: "types", title: "Types",
+    symbols: [
+      {
+        id: "types-sym", kind: "type", nav: "Interfaces & aliases", kbadge: "T", custom: true,
+        desc: "<p>Exported TypeScript types. These carry no runtime code &mdash; import them with <code>import type</code> for signatures and <code>instanceof</code>-free typing.</p>",
+        typeList: [
+          ["DocumentMode", 'type DocumentMode = "html" | "xml"', 'The two document modes accepted by <code>createDocument</code>.'],
+          ["CreateDocumentOptions", "interface CreateDocumentOptions { mode?: DocumentMode }", 'Options bag for <code>createDocument</code>. <code>mode</code> defaults to <code>"html"</code>.'],
+          ["InsertPosition", 'type InsertPosition = "beforebegin" | "afterbegin" | "beforeend" | "afterend"', 'Positions accepted by the <code>insertAdjacent*</code> methods.'],
+          ["SerializeOptions", "interface SerializeOptions { xml?: boolean }", 'Options for <code>serialize</code>. Set <code>xml: true</code> for XML rules.'],
+          ["NodeListLike&lt;T&gt;", "interface NodeListLike<T> extends Iterable<T>", 'Read-only, indexable, iterable list with <code>length</code>, <code>item()</code>, <code>forEach()</code>, <code>keys()</code>, <code>values()</code> and <code>entries()</code>. Returned as a <strong>static snapshot</strong>.'],
+          ["HTMLCollectionLike&lt;T&gt;", "type HTMLCollectionLike<T> = NodeListLike<T>", 'Alias of <code>NodeListLike</code> used for element collections such as <code>children</code>.'],
+          ["NamedNodeMapLike", "interface NamedNodeMapLike extends Iterable<VAttr>", 'The static attribute map returned by <code>element.attributes</code>: <code>length</code>, <code>item()</code>, <code>getNamedItem()</code>, <code>getNamedItemNS()</code>.'],
+          ["VAttr", "interface VAttr { namespaceURI; prefix; localName; name; value }", 'A read-only snapshot of a single attribute (all fields <code>readonly</code> strings or <code>null</code>).'],
+          ["DOMStringMap", "type DOMStringMap = Record<string, string>", 'The type of <code>element.dataset</code>.'],
+          ["DOMExceptionName", 'type DOMExceptionName = "HierarchyRequestError" | "NotFoundError" | …', 'The union of error names carried by <code>DOMException</code>.']
+        ]
+      },
+      {
+        id: "DOMException", kind: "class", nav: "DOMException", kbadge: "C", ext: "Error",
+        signature: "class DOMException extends Error",
+        desc: "<p>A dependency-free stand-in for the browser <code>DOMException</code> (which is not guaranteed in every Worker). It carries the familiar <code>name</code>/<code>message</code>/<code>code</code> shape. The library throws it for invalid operations &mdash; catch it and inspect <code>err.name</code>.</p>",
+        members: [
+          m("property","name","name: DOMExceptionName",'The error name, for example <code>\"NotFoundError\"</code>.'),
+          m("property","code","readonly code: number","The legacy numeric code (for example <code>8</code>), or <code>0</code> when the name has none.",{ro:true}),
+          m("property","message","message: string","The human-readable error message (inherited from <code>Error</code>).")
+        ],
+        snippet: 'import { createDocument, DOMException } from "worker-vdom";\n\nconst document = createDocument();\nconst orphan = document.createElement("span");\ntry {\n  document.body.removeChild(orphan); // not a child\n} catch (err) {\n  if (err instanceof DOMException) {\n    err.name; // "NotFoundError"\n    err.code; // 8\n  }\n}'
+      }
+    ]
+  }
+];
+
+/* ---------- Getting Started custom HTML ---------- */
+var GETTING_STARTED_HTML =
+'<div class="hero" id="top-hero">' +
+  '<div class="eyebrow">worker-vdom</div>' +
+  '<h1>A virtual DOM built for Web Workers</h1>' +
+  '<p class="lede">A lightweight, dependency-free virtual DOM tree with the familiar browser DOM API &mdash; create, mutate, query, clone and serialize an isolated document off the main thread. No globals, no layout engine, no network.</p>' +
+'</div>' +
+
+'<h2 style="font-size:20px;margin:0 0 12px;letter-spacing:-.01em">Install</h2>' +
+codeBlock('npm install worker-vdom', 'bash') +
+
+'<h2 style="font-size:20px;margin:32px 0 8px;letter-spacing:-.01em">Quick start &mdash; build an SVG</h2>' +
+'<p style="color:var(--text-soft);margin:0 0 4px;max-width:720px">Create a document, build a namespaced tree, set attributes and read the markup back out. Everything runs in memory with no browser needed.</p>' +
+codeBlock(
+'import { createDocument, SVG_NS } from "worker-vdom";\n\n' +
+'const document = createDocument();\n\n' +
+'const svg = document.createElementNS(SVG_NS, "svg");\n' +
+'svg.setAttribute("viewBox", "0 0 100 100");\n\n' +
+'const circle = document.createElementNS(SVG_NS, "circle");\n' +
+'circle.setAttribute("cx", "50");\n' +
+'circle.setAttribute("cy", "50");\n' +
+'circle.setAttribute("r", "40");\n\n' +
+'svg.appendChild(circle);\n' +
+'document.body.appendChild(svg);\n\n' +
+'console.log(document.documentElement.outerHTML);\n' +
+'// <html><head></head><body><svg viewBox="0 0 100 100">…</svg></body></html>') +
+
+'<h2 style="font-size:20px;margin:32px 0 8px;letter-spacing:-.01em">Inside a Web Worker</h2>' +
+'<p style="color:var(--text-soft);margin:0 0 4px;max-width:720px">Because it touches no browser globals, worker-vdom is happy inside a <code>Worker</code>. Build markup off the main thread and post the string back.</p>' +
+codeBlock(
+'// worker.js\n' +
+'import { createDocument } from "worker-vdom";\n\n' +
+'self.onmessage = (event) => {\n' +
+'  const document = createDocument();\n' +
+'  const section = document.createElement("section");\n\n' +
+'  const heading = document.createElement("h1");\n' +
+'  heading.textContent = event.data.title;\n' +
+'  section.appendChild(heading);\n\n' +
+'  for (const item of event.data.items) {\n' +
+'    const p = document.createElement("p");\n' +
+'    p.textContent = item;\n' +
+'    section.appendChild(p);\n' +
+'  }\n\n' +
+'  self.postMessage(section.outerHTML);\n' +
+'};') +
+
+'<div class="callout">' +
+  '<div class="callout-title">' +
+    '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>' +
+    'These are the supported APIs' +
+  '</div>' +
+  '<p style="margin:0 0 6px">worker-vdom deliberately covers the structural DOM: building, mutating, querying, cloning and serializing a tree. The following browser features are intentionally <strong>out of scope</strong> and are not implemented &mdash; the library never claims to support them:</p>' +
+  '<div class="pill-row">' +
+    '<span class="pill no">Events</span>' +
+    '<span class="pill no">CSS / style</span>' +
+    '<span class="pill no">Layout &amp; geometry</span>' +
+    '<span class="pill no">Shadow DOM</span>' +
+    '<span class="pill no">Custom elements</span>' +
+    '<span class="pill no">MutationObserver</span>' +
+    '<span class="pill no">Script execution</span>' +
+  '</div>' +
+  '<p style="margin:10px 0 0">Two conceptual guides &mdash; <em>HTML vs XML mode</em> and <em>Namespaces</em> &mdash; cover the behavioral details that shape how the supported APIs serialize and resolve names.</p>' +
+'</div>' +
+
+'<div class="callout" style="border-left-color:#0a7d5a">' +
+  '<div class="callout-title">Collections are static snapshots</div>' +
+  '<p style="margin:0">Unlike the live collections in a real browser, every list returned here (<code>childNodes</code>, <code>children</code>, <code>querySelectorAll</code>, <code>attributes</code>) is a <strong>static snapshot</strong> taken when the query ran. It does not update as the tree changes &mdash; re-query after mutating.</p>' +
+'</div>' +
+
+'<div class="callout" style="border-left-color:#1f6feb">' +
+  '<div class="callout-title">Supported CSS selectors</div>' +
+  '<p style="margin:0 0 6px">The selector engine (used by <code>querySelector</code>, <code>querySelectorAll</code>, <code>matches</code> and <code>closest</code>) implements a practical subset:</p>' +
+  '<ul style="margin:0;padding-left:20px;color:var(--text-soft)">' +
+    '<li><strong>Simple:</strong> <code>*</code>, type, <code>#id</code>, <code>.class</code></li>' +
+    '<li><strong>Attributes:</strong> <code>[attr]</code>, <code>[attr=v]</code>, <code>~=</code>, <code>|=</code>, <code>^=</code>, <code>$=</code>, <code>*=</code>, with optional case-insensitive flag</li>' +
+    '<li><strong>Combinators:</strong> descendant (space), child <code>&gt;</code>, adjacent <code>+</code>, general sibling <code>~</code></li>' +
+    '<li><strong>Pseudo-classes:</strong> <code>:first-child</code>, <code>:last-child</code>, <code>:only-child</code>, <code>:first-of-type</code>, <code>:last-of-type</code>, <code>:empty</code>, <code>:root</code>, <code>:not()</code>, <code>:is()</code>, <code>:where()</code>, <code>:nth-child()</code>, <code>:nth-last-child()</code></li>' +
+    '<li>Selector lists (comma-separated) are supported. Unsupported pseudo-classes simply never match.</li>' +
+  '</ul>' +
+'</div>';
+
+/* ---------- rendering ---------- */
+function codeBlock(src, lang){
+  var cls = lang === "bash" ? "" : "";
+  return '<div class="code-wrap">' +
+    '<button class="copy-btn" type="button" aria-label="Copy code">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>' +
+      '<span class="copy-label">Copy</span>' +
+    '</button>' +
+    '<pre class="code"><code>' + highlight(src) + '</code></pre>' +
+  '</div>';
+}
+
+function badgeFor(mem){
+  var out = "";
+  if (mem.k === "method") out += '<span class="badge b-method">method</span>';
+  else if (mem.k === "property") out += '<span class="badge b-property">property</span>';
+  else if (mem.k === "getter") { out += '<span class="badge b-getter">getter</span>'; if (mem.setter) out += '<span class="badge b-setter">setter</span>'; }
+  else if (mem.k === "static-method") out += '<span class="badge b-static">static</span><span class="badge b-method">method</span>';
+  if (mem.ro) out += '<span class="badge b-readonly">readonly</span>';
+  return out;
+}
+
+function renderMember(sym, mem){
+  var mid = sym.id + "__" + mem.name.replace(/[^\w]+/g, "_");
+  var search = (mem.name + " " + mem.sig + " " + mem.desc).toLowerCase();
+  return '<div class="member" id="' + mid + '" data-search="' + escapeHtml(search) + '">' +
+    '<div class="member-head">' +
+      '<span class="member-name">' + escapeHtml(mem.name) + '</span>' +
+      badgeFor(mem) +
+    '</div>' +
+    '<div class="member-sig"><code>' + highlight(mem.sig) + '</code></div>' +
+    '<div class="member-desc"><p>' + mem.desc + '</p></div>' +
+  '</div>';
+}
+
+function renderConstTable(t){
+  var h = '<table class="const-table"><thead><tr>';
+  t.head.forEach(function(c){ h += '<th>' + c + '</th>'; });
+  h += '</tr></thead><tbody>';
+  t.rows.forEach(function(r){
+    h += '<tr>';
+    r.forEach(function(cell, i){
+      if (i === 0) h += '<td><code>' + cell + '</code></td>';
+      else if (t.head[i] === "Value") h += '<td><code>' + cell + '</code></td>';
+      else if (t.head[i] === "URI") h += '<td><code>' + cell + '</code></td>';
+      else if (t.head[i] === "Used by" && cell.indexOf("V") === 0) h += '<td><code>' + cell + '</code></td>';
+      else h += '<td class="desc">' + cell + '</td>';
+    });
+    h += '</tr>';
+  });
+  return h + '</tbody></table>';
+}
+
+function renderTypeList(list){
+  var h = "";
+  list.forEach(function(t){
+    var name = t[0], sig = t[1], desc = t[2];
+    var search = (name + " " + sig + " " + desc).toLowerCase();
+    h += '<div class="member" data-search="' + escapeHtml(search) + '">' +
+      '<div class="member-head"><span class="member-name">' + name + '</span><span class="badge b-property">type</span></div>' +
+      '<div class="member-sig"><code>' + highlight(sig) + '</code></div>' +
+      '<div class="member-desc"><p>' + desc + '</p></div>' +
+    '</div>';
+  });
+  return h;
+}
+
+/* ---------- Playground presets ---------- */
+var PLAYGROUND_PRESETS = [
+  {
+    name: "SVG builder",
+    code:
+'// Build a namespaced SVG tree and read the markup back out.\n' +
+'const document = createDocument();\n\n' +
+'const svg = document.createElementNS(SVG_NS, "svg");\n' +
+'svg.setAttribute("viewBox", "0 0 100 100");\n\n' +
+'const circle = document.createElementNS(SVG_NS, "circle");\n' +
+'circle.setAttribute("cx", "50");\n' +
+'circle.setAttribute("cy", "50");\n' +
+'circle.setAttribute("r", "40");\n' +
+'circle.setAttribute("fill", "rebeccapurple");\n\n' +
+'svg.appendChild(circle);\n' +
+'document.body.appendChild(svg);\n\n' +
+'console.log(document.documentElement.outerHTML);'
+  },
+  {
+    name: "querySelectorAll",
+    code:
+'// Parse markup, then query it with CSS selectors.\n' +
+'const document = createDocument();\n' +
+'document.body.innerHTML =\n' +
+'  "<ul><li class=on>A</li><li>B</li><li class=on>C</li></ul>";\n\n' +
+'const on = document.querySelectorAll("li.on");\n' +
+'console.log("matched:", on.length);\n' +
+'for (const li of on) console.log(li.textContent);\n\n' +
+'console.log("2nd item:", document.querySelector("li:nth-child(2)").textContent);'
+  },
+  {
+    name: "classList + dataset",
+    code:
+'// classList and dataset stay in sync with the attributes.\n' +
+'const document = createDocument();\n' +
+'const el = document.createElement("div");\n\n' +
+'el.classList.add("card", "card--wide");\n' +
+'el.classList.toggle("is-active");\n' +
+'el.dataset.userId = "42";       // sets data-user-id\n' +
+'el.dataset.role = "admin";\n\n' +
+'console.log("class attr:", el.getAttribute("class"));\n' +
+'console.log("tokens:", [...el.classList].join(", "));\n' +
+'console.log("data-user-id:", el.getAttribute("data-user-id"));\n' +
+'return el.outerHTML;'
+  },
+  {
+    name: "innerHTML parsing",
+    code:
+'// Set innerHTML to parse a fragment, then walk the result.\n' +
+'const document = createDocument();\n' +
+'const nav = document.createElement("nav");\n' +
+'nav.innerHTML =\n' +
+'  "<a href=/>Home</a><!-- gap --><a href=/about>About</a>";\n\n' +
+'console.log("child elements:", nav.childElementCount);\n' +
+'for (const a of nav.children) {\n' +
+'  console.log(a.getAttribute("href"), "->", a.textContent);\n' +
+'}\n' +
+'return nav.innerHTML;'
+  }
+];
+
+function buildPlaygroundHTML(){
+  var presets = "";
+  PLAYGROUND_PRESETS.forEach(function(p, i){
+    presets += '<button class="pg-preset" type="button" data-preset="' + i + '">' + escapeHtml(p.name) + '</button>';
+  });
+  return '<section class="symbol" id="playground" data-search="playground interactive run code editor live demo repl execute">' +
+    '<div class="sym-head"><h2>Playground</h2><span class="sym-kind k-function">live</span></div>' +
+    '<div class="sym-desc"><p>Edit and run real worker-vdom code right here &mdash; the library is bundled into this page and executes entirely in your browser, with no network calls. The functions <code>createDocument</code>, <code>serialize</code>, <code>serializeHTML</code>, <code>serializeXML</code> and <code>parseFragment</code>, every <code>V*</code> class, <code>DOMTokenList</code>, <code>DOMException</code> and all constants are in scope. Use <code>console.log(&hellip;)</code> or <code>return</code> a value to see output.</p></div>' +
+    '<div class="pg-presets" role="group" aria-label="Preset examples">' + presets + '</div>' +
+    '<div class="pg-editor">' +
+      '<textarea class="pg-code" id="pg-code" spellcheck="false" aria-label="Editable code" wrap="off"></textarea>' +
+      '<div class="pg-toolbar">' +
+        '<button class="btn-primary" id="pg-run" type="button">' +
+          '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Run' +
+        '</button>' +
+        '<button class="btn-ghost" id="pg-reset" type="button">Reset</button>' +
+        '<span class="muted" style="font-size:12.5px;color:var(--text-faint)">Runs locally &middot; nothing leaves your browser</span>' +
+      '</div>' +
+    '</div>' +
+    '<div class="io-label">Output</div>' +
+    '<pre class="pg-output" id="pg-output" aria-live="polite"><span class="muted">Press Run to execute the code above.</span></pre>' +
+  '</section>';
+}
+
+function buildBenchmarksHTML(){
+  return '<section class="symbol" id="benchmarks" data-search="benchmarks performance speed ops per second timing measure">' +
+    '<div class="sym-head"><h2>Benchmarks</h2><span class="sym-kind k-constant">live</span></div>' +
+    '<div class="sym-desc"><p>Run a set of micro-benchmarks against the bundled library, timed with <code>performance.now()</code>, directly in your browser. Each test yields to the event loop between runs so the page never freezes.</p></div>' +
+    '<div class="callout" style="border-left-color:#b26a00;margin-top:0">' +
+      '<div class="callout-title">' +
+        '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>' +
+        'Indicative only' +
+      '</div>' +
+      '<p style="margin:0">Numbers depend heavily on your machine, browser and current load, and are recomputed live on every run. They are <strong>not</strong> comparative claims against any other library.</p>' +
+    '</div>' +
+    '<div class="bm-controls">' +
+      '<label for="bm-n">Work size&nbsp;N</label>' +
+      '<input id="bm-n" type="number" value="50000" min="1000" max="100000" step="1000" aria-label="Work size N" />' +
+      '<button class="btn-primary" id="bm-run" type="button">' +
+        '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg>Run benchmarks' +
+      '</button>' +
+    '</div>' +
+    '<div class="bm-status" id="bm-status" aria-live="polite"><span class="muted">Set N (up to 100000) and press Run.</span></div>' +
+    '<div class="bm-table-wrap">' +
+      '<table class="bm-table">' +
+        '<thead><tr><th>Operation</th><th style="text-align:right">Iterations</th><th style="text-align:right">Total (ms)</th><th style="text-align:right">Ops / sec</th><th>Relative</th></tr></thead>' +
+        '<tbody id="bm-tbody"><tr><td colspan="5" class="muted" style="color:var(--text-faint);padding:16px 13px">No results yet.</td></tr></tbody>' +
+      '</table>' +
+    '</div>' +
+  '</section>';
+}
+
+function renderSymbol(sym){
+  if (sym.id === "getting-started-sym") {
+    return '<section class="symbol" id="getting-started-sym" data-search="getting started overview install quick start web worker svg scope selectors">' +
+      GETTING_STARTED_HTML + '</section>';
+  }
+  if (sym.id === "playground") return buildPlaygroundHTML();
+  if (sym.id === "benchmarks") return buildBenchmarksHTML();
+
+  var h = '<section class="symbol" id="' + sym.id + '" data-search="' + escapeHtml((sym.nav + " " + (sym.signature||"") + " " + (sym.desc||"")).toLowerCase().replace(/<[^>]+>/g,' ')) + '">';
+  h += '<div class="sym-head">' +
+    '<h2>' + escapeHtml(sym.nav) + '</h2>' +
+    '<span class="sym-kind k-' + sym.kind + '">' + sym.kind + '</span>' +
+  '</div>';
+  if (sym.ext) h += '<p class="extends-note">extends <code>' + sym.ext + '</code></p>';
+  if (sym.desc) h += '<div class="sym-desc">' + sym.desc + '</div>';
+  if (sym.signature) h += '<div class="sig-block"><code>' + highlight(sym.signature) + '</code></div>';
+
+  if (sym.snippet) h += codeBlock(sym.snippet);
+  if (sym.table) h += renderConstTable(sym.table);
+  if (sym.typeList) h += renderTypeList(sym.typeList);
+
+  if (sym.members && sym.members.length) {
+    h += '<div class="members-title">Members</div>';
+    sym.members.forEach(function(mem){ h += renderMember(sym, mem); });
+  }
+  h += '</section>';
+  return h;
+}
+
+/* ---------- build DOM ---------- */
+(function build(){
+  var nav = document.getElementById("navList");
+  var content = document.getElementById("content");
+  var navHtml = "";
+  var contentHtml = "";
+
+  GROUPS.forEach(function(group){
+    navHtml += '<div class="nav-group" data-group="' + group.id + '">' +
+      '<div class="nav-title">' + group.title + '</div>';
+    group.symbols.forEach(function(sym){
+      var target = sym.id;
+      navHtml += '<a class="nav-link" href="#' + target + '" data-target="' + target + '" data-name="' + escapeHtml(sym.nav.toLowerCase()) + '">' +
+        '<span class="kbadge">' + (sym.kbadge || "") + '</span>' +
+        '<span class="nav-label">' + escapeHtml(sym.nav) + '</span>' +
+      '</a>';
+      contentHtml += renderSymbol(sym);
+    });
+    navHtml += '</div>';
+  });
+
+  nav.innerHTML = navHtml;
+  content.innerHTML = contentHtml;
+})();
+
+// Expose presets for the module-scoped interactive glue below.
+window.PLAYGROUND_PRESETS = PLAYGROUND_PRESETS;
+
+/* ---------- theme ---------- */
+(function theme(){
+  var root = document.documentElement;
+  var sun = document.getElementById("iconSun");
+  var moon = document.getElementById("iconMoon");
+  function systemDark(){ return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches; }
+  function apply(mode){
+    if (mode === "dark" || mode === "light") root.setAttribute("data-theme", mode);
+    else root.removeAttribute("data-theme");
+    var isDark = mode === "dark" || (mode !== "light" && systemDark());
+    sun.style.display = isDark ? "none" : "block";
+    moon.style.display = isDark ? "block" : "none";
+  }
+  var stored = null;
+  try { stored = localStorage.getItem("wvdom-theme"); } catch(e){}
+  apply(stored || "system");
+  document.getElementById("themeBtn").addEventListener("click", function(){
+    var current = root.getAttribute("data-theme");
+    var isDark = current ? current === "dark" : systemDark();
+    var next = isDark ? "light" : "dark";
+    apply(next);
+    try { localStorage.setItem("wvdom-theme", next); } catch(e){}
+  });
+})();
+
+/* ---------- copy buttons ---------- */
+document.addEventListener("click", function(e){
+  var btn = e.target.closest && e.target.closest(".copy-btn");
+  if (!btn) return;
+  var code = btn.parentElement.querySelector("code");
+  var text = code ? code.textContent : "";
+  var label = btn.querySelector(".copy-label");
+  function done(){
+    btn.classList.add("copied");
+    if (label) label.textContent = "Copied";
+    setTimeout(function(){ btn.classList.remove("copied"); if (label) label.textContent = "Copy"; }, 1600);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done, function(){ fallback(text); done(); });
+  } else { fallback(text); done(); }
+  function fallback(t){
+    var ta = document.createElement("textarea");
+    ta.value = t; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); } catch(err){}
+    document.body.removeChild(ta);
+  }
+});
+
+/* ---------- search / filter ---------- */
+(function search(){
+  var input = document.getElementById("search");
+  var clear = document.getElementById("searchClear");
+  var empty = document.getElementById("navEmpty");
+  var links = Array.prototype.slice.call(document.querySelectorAll(".nav-link"));
+  var groups = Array.prototype.slice.call(document.querySelectorAll(".nav-group"));
+  var sections = Array.prototype.slice.call(document.querySelectorAll("section.symbol"));
+
+  function run(){
+    var q = input.value.trim().toLowerCase();
+    clear.style.display = q ? "block" : "none";
+    var anyVisible = false;
+
+    sections.forEach(function(sec){
+      if (!q) { sec.classList.remove("hidden"); return; }
+      var members = Array.prototype.slice.call(sec.querySelectorAll(".member"));
+      var symMatch = (sec.getAttribute("data-search") || "").indexOf(q) !== -1;
+      var memMatches = 0;
+      members.forEach(function(mm){
+        var hit = (mm.getAttribute("data-search") || "").indexOf(q) !== -1;
+        // If the symbol title matches, keep all members; otherwise filter.
+        if (symMatch || hit) { mm.classList.remove("hidden"); if (hit) memMatches++; }
+        else mm.classList.add("hidden");
+      });
+      var show = symMatch || memMatches > 0;
+      sec.classList.toggle("hidden", !show);
+    });
+
+    links.forEach(function(link){
+      var target = link.getAttribute("data-target");
+      var sec = document.getElementById(target);
+      var visible;
+      if (!q) visible = true;
+      else if (!sec) visible = link.getAttribute("data-name").indexOf(q) !== -1;
+      else visible = !sec.classList.contains("hidden");
+      link.style.display = visible ? "" : "none";
+      if (visible) anyVisible = true;
+    });
+
+    groups.forEach(function(g){
+      var visibleLinks = Array.prototype.slice.call(g.querySelectorAll(".nav-link"))
+        .filter(function(l){ return l.style.display !== "none"; });
+      g.style.display = visibleLinks.length ? "" : "none";
+    });
+
+    empty.style.display = (q && !anyVisible) ? "block" : "none";
+  }
+
+  input.addEventListener("input", run);
+  clear.addEventListener("click", function(){ input.value = ""; run(); input.focus(); });
+  input.addEventListener("keydown", function(e){ if (e.key === "Escape") { input.value = ""; run(); } });
+})();
+
+/* ---------- active nav on scroll + mobile menu ---------- */
+(function nav(){
+  var links = Array.prototype.slice.call(document.querySelectorAll(".nav-link"));
+  var byTarget = {};
+  links.forEach(function(l){ byTarget[l.getAttribute("data-target")] = l; });
+  var sections = Array.prototype.slice.call(document.querySelectorAll("section.symbol"));
+
+  var current = null;
+  function setActive(id){
+    if (id === current) return;
+    current = id;
+    links.forEach(function(l){ l.classList.toggle("active", l.getAttribute("data-target") === id); });
+  }
+
+  if ("IntersectionObserver" in window) {
+    var visible = {};
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if (en.isIntersecting) visible[en.target.id] = en.intersectionRatio;
+        else delete visible[en.target.id];
+      });
+      // Pick the topmost visible section.
+      var best = null, bestTop = Infinity;
+      Object.keys(visible).forEach(function(id){
+        var el = document.getElementById(id);
+        if (!el) return;
+        var top = el.getBoundingClientRect().top;
+        if (top < bestTop) { bestTop = top; best = id; }
+      });
+      if (best) setActive(best);
+    }, { rootMargin: "-72px 0px -65% 0px", threshold: [0, 0.1, 0.5, 1] });
+    sections.forEach(function(s){ io.observe(s); });
+  }
+
+  // Mobile menu
+  var body = document.body;
+  var menuBtn = document.getElementById("menuBtn");
+  var backdrop = document.getElementById("backdrop");
+  function closeMenu(){ body.classList.remove("nav-open"); menuBtn.setAttribute("aria-expanded", "false"); }
+  menuBtn.addEventListener("click", function(){
+    var open = body.classList.toggle("nav-open");
+    menuBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+  backdrop.addEventListener("click", closeMenu);
+  links.forEach(function(l){ l.addEventListener("click", function(){ if (window.innerWidth <= 900) closeMenu(); }); });
+})();
+</script>
+<!-- Inlined worker-vdom bundle (built with esbuild from src/index.ts) + interactive glue. No network requests. -->
+<script type="module">
+/* === worker-vdom bundle (esbuild --bundle --format=esm) === */
+// src/constants.ts
+var ELEMENT_NODE = 1;
+var ATTRIBUTE_NODE = 2;
+var TEXT_NODE = 3;
+var CDATA_SECTION_NODE = 4;
+var PROCESSING_INSTRUCTION_NODE = 7;
+var COMMENT_NODE = 8;
+var DOCUMENT_NODE = 9;
+var DOCUMENT_TYPE_NODE = 10;
+var DOCUMENT_FRAGMENT_NODE = 11;
+var HTML_NS = "http://www.w3.org/1999/xhtml";
+var SVG_NS = "http://www.w3.org/2000/svg";
+var MATHML_NS = "http://www.w3.org/1998/Math/MathML";
+var XML_NS = "http://www.w3.org/XML/1998/namespace";
+var XMLNS_NS = "http://www.w3.org/2000/xmlns/";
+var XLINK_NS = "http://www.w3.org/1999/xlink";
+var VOID_ELEMENTS = /* @__PURE__ */ new Set([
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "param",
+  "source",
+  "track",
+  "wbr"
+]);
+var RAW_TEXT_ELEMENTS = /* @__PURE__ */ new Set(["script", "style"]);
+var ESCAPABLE_RAW_TEXT_ELEMENTS = /* @__PURE__ */ new Set([
+  "textarea",
+  "title"
+]);
+
+// src/errors.ts
+var LEGACY_CODES = {
+  HierarchyRequestError: 3,
+  WrongDocumentError: 4,
+  InvalidCharacterError: 5,
+  NotFoundError: 8,
+  NotSupportedError: 9,
+  InvalidStateError: 11,
+  SyntaxError: 12,
+  NamespaceError: 14
+};
+var DOMException = class _DOMException extends Error {
+  constructor(message, name = "InvalidStateError") {
+    super(message);
+    this.name = name;
+    this.code = LEGACY_CODES[name] ?? 0;
+    Object.setPrototypeOf(this, _DOMException.prototype);
+  }
+};
+function hierarchyRequestError(message) {
+  return new DOMException(message, "HierarchyRequestError");
+}
+function notFoundError(message) {
+  return new DOMException(message, "NotFoundError");
+}
+function invalidCharacterError(message) {
+  return new DOMException(message, "InvalidCharacterError");
+}
+function namespaceError(message) {
+  return new DOMException(message, "NamespaceError");
+}
+function syntaxError(message) {
+  return new DOMException(message, "SyntaxError");
+}
+function notSupportedError(message) {
+  return new DOMException(message, "NotSupportedError");
+}
+
+// src/collections.ts
+var StaticNodeList = class {
+  constructor(items) {
+    this.length = items.length;
+    for (let i = 0; i < items.length; i++) {
+      this[i] = items[i];
+    }
+  }
+  item(index) {
+    return index >= 0 && index < this.length ? this[index] : null;
+  }
+  forEach(callback, thisArg) {
+    for (let i = 0; i < this.length; i++) {
+      callback.call(thisArg, this[i], i, this);
+    }
+  }
+  *keys() {
+    for (let i = 0; i < this.length; i++) yield i;
+  }
+  *values() {
+    for (let i = 0; i < this.length; i++) yield this[i];
+  }
+  *entries() {
+    for (let i = 0; i < this.length; i++) yield [i, this[i]];
+  }
+  [Symbol.iterator]() {
+    return this.values();
+  }
+};
+function createNodeList(items) {
+  return new StaticNodeList(items);
+}
+
+// src/node.ts
+var VNode = class {
+  constructor() {
+    /** @internal Raw child array. Prefer {@link childNodes} externally. */
+    this._childNodes = [];
+    /** @internal */
+    this._parentNode = null;
+    /** @internal */
+    this._ownerDocument = null;
+  }
+  // --- Ownership -----------------------------------------------------------
+  get ownerDocument() {
+    return this._ownerDocument;
+  }
+  /** @internal The document to use when creating helper nodes. */
+  _nodeDocument() {
+    if (this.nodeType === DOCUMENT_NODE) return this;
+    if (this._ownerDocument) return this._ownerDocument;
+    throw new Error("Node has no owner document");
+  }
+  // --- Tree accessors ------------------------------------------------------
+  get parentNode() {
+    return this._parentNode;
+  }
+  get parentElement() {
+    const p = this._parentNode;
+    return p && p.nodeType === ELEMENT_NODE ? p : null;
+  }
+  get childNodes() {
+    return createNodeList(this._childNodes);
+  }
+  get firstChild() {
+    return this._childNodes[0] ?? null;
+  }
+  get lastChild() {
+    return this._childNodes[this._childNodes.length - 1] ?? null;
+  }
+  get previousSibling() {
+    const p = this._parentNode;
+    if (!p) return null;
+    const i = p._childNodes.indexOf(this);
+    return i > 0 ? p._childNodes[i - 1] : null;
+  }
+  get nextSibling() {
+    const p = this._parentNode;
+    if (!p) return null;
+    const i = p._childNodes.indexOf(this);
+    return i >= 0 && i < p._childNodes.length - 1 ? p._childNodes[i + 1] : null;
+  }
+  get isConnected() {
+    let n = this;
+    while (n._parentNode) n = n._parentNode;
+    return n.nodeType === DOCUMENT_NODE;
+  }
+  hasChildNodes() {
+    return this._childNodes.length > 0;
+  }
+  // --- Values --------------------------------------------------------------
+  get nodeValue() {
+    return null;
+  }
+  set nodeValue(_value) {
+  }
+  get textContent() {
+    if (this.nodeType === ELEMENT_NODE || this.nodeType === DOCUMENT_FRAGMENT_NODE) {
+      let out = "";
+      const stack = [];
+      for (let i = this._childNodes.length - 1; i >= 0; i--) {
+        stack.push(this._childNodes[i]);
+      }
+      while (stack.length) {
+        const n = stack.pop();
+        if (n.nodeType === TEXT_NODE) {
+          out += n.data;
+        } else if (n.nodeType === ELEMENT_NODE || n.nodeType === DOCUMENT_FRAGMENT_NODE) {
+          for (let i = n._childNodes.length - 1; i >= 0; i--) {
+            stack.push(n._childNodes[i]);
+          }
+        }
+      }
+      return out;
+    }
+    return null;
+  }
+  set textContent(value) {
+    if (this.nodeType === ELEMENT_NODE || this.nodeType === DOCUMENT_FRAGMENT_NODE) {
+      this._removeAllChildren();
+      const str = value ?? "";
+      if (str !== "") {
+        const text = this._nodeDocument().createTextNode(str);
+        this.appendChild(text);
+      }
+    }
+  }
+  // --- Mutation ------------------------------------------------------------
+  appendChild(child) {
+    return this.insertBefore(child, null);
+  }
+  insertBefore(node, reference) {
+    this._ensurePreInsertionValidity(node, reference);
+    if (node.nodeType === DOCUMENT_FRAGMENT_NODE) {
+      const kids = node._childNodes.slice();
+      node._childNodes.length = 0;
+      for (const k of kids) k._parentNode = null;
+      const refIndex = reference === null ? this._childNodes.length : this._childNodes.indexOf(reference);
+      let insertAt = refIndex;
+      for (const k of kids) {
+        this._adopt(k);
+        k._parentNode = this;
+        this._childNodes.splice(insertAt++, 0, k);
+      }
+      return node;
+    }
+    if (node._parentNode) {
+      node._parentNode._removeChildInternal(node);
+    }
+    this._adopt(node);
+    node._parentNode = this;
+    if (reference === null) {
+      this._childNodes.push(node);
+    } else {
+      const idx = this._childNodes.indexOf(reference);
+      this._childNodes.splice(idx, 0, node);
+    }
+    return node;
+  }
+  removeChild(child) {
+    if (child._parentNode !== this) {
+      throw notFoundError(
+        "Failed to execute 'removeChild': The node to be removed is not a child of this node."
+      );
+    }
+    this._removeChildInternal(child);
+    return child;
+  }
+  replaceChild(newChild, oldChild) {
+    if (oldChild._parentNode !== this) {
+      throw notFoundError(
+        "Failed to execute 'replaceChild': The node to be replaced is not a child of this node."
+      );
+    }
+    this._ensurePreInsertionValidity(newChild, oldChild);
+    const refSibling = oldChild.nextSibling === newChild ? null : oldChild.nextSibling;
+    this._removeChildInternal(oldChild);
+    this.insertBefore(newChild, refSibling);
+    return oldChild;
+  }
+  remove() {
+    if (this._parentNode) this._parentNode._removeChildInternal(this);
+  }
+  contains(other) {
+    let n = other;
+    while (n) {
+      if (n === this) return true;
+      n = n._parentNode;
+    }
+    return false;
+  }
+  cloneNode(deep = false) {
+    const clone = this._shallowClone();
+    if (!deep) return clone;
+    const docForClone = clone.nodeType === DOCUMENT_NODE ? clone : clone._ownerDocument;
+    const stack = [[this, clone]];
+    while (stack.length) {
+      const [src, dst] = stack.pop();
+      const kids = src._childNodes;
+      for (let i = 0; i < kids.length; i++) {
+        const childClone = kids[i]._shallowClone();
+        childClone._parentNode = dst;
+        childClone._ownerDocument = docForClone;
+        dst._childNodes.push(childClone);
+        stack.push([kids[i], childClone]);
+      }
+    }
+    return clone;
+  }
+  // --- Modern convenience methods -----------------------------------------
+  before(...nodes) {
+    const parent = this._parentNode;
+    if (!parent) return;
+    const node = this._convertNodesIntoNode(nodes);
+    parent.insertBefore(node, this);
+  }
+  after(...nodes) {
+    const parent = this._parentNode;
+    if (!parent) return;
+    const node = this._convertNodesIntoNode(nodes);
+    parent.insertBefore(node, this.nextSibling);
+  }
+  replaceWith(...nodes) {
+    const parent = this._parentNode;
+    if (!parent) return;
+    const next = this.nextSibling;
+    const node = this._convertNodesIntoNode(nodes);
+    parent._removeChildInternal(this);
+    parent.insertBefore(node, next);
+  }
+  append(...nodes) {
+    this.appendChild(this._convertNodesIntoNode(nodes));
+  }
+  prepend(...nodes) {
+    this.insertBefore(this._convertNodesIntoNode(nodes), this.firstChild);
+  }
+  replaceChildren(...nodes) {
+    this._removeAllChildren();
+    this.appendChild(this._convertNodesIntoNode(nodes));
+  }
+  // --- Internal helpers ----------------------------------------------------
+  /** @internal */
+  _removeChildInternal(child) {
+    const idx = this._childNodes.indexOf(child);
+    if (idx === -1) return;
+    this._childNodes.splice(idx, 1);
+    child._parentNode = null;
+  }
+  /**
+   * @internal Fast, unchecked append used by trusted callers (the parser).
+   * Skips validation and adoption; the caller guarantees `child` was created
+   * by the same document and has no parent.
+   */
+  _appendChildFast(child) {
+    child._parentNode = this;
+    this._childNodes.push(child);
+  }
+  /** @internal */
+  _removeAllChildren() {
+    for (const c of this._childNodes) c._parentNode = null;
+    this._childNodes.length = 0;
+  }
+  /**
+   * @internal Adopt a node (and its subtree) into this node's document.
+   * Matches the DOM behavior where insertion auto-adopts foreign nodes.
+   */
+  _adopt(node) {
+    const doc = this.nodeType === DOCUMENT_NODE ? this : this._ownerDocument;
+    if (!doc || node._ownerDocument === doc) return;
+    const stack = [node];
+    while (stack.length) {
+      const n = stack.pop();
+      n._ownerDocument = doc;
+      for (let i = 0; i < n._childNodes.length; i++) stack.push(n._childNodes[i]);
+    }
+  }
+  /** @internal Turn a node/string list into a single node or fragment. */
+  _convertNodesIntoNode(nodes) {
+    const doc = this._nodeDocument();
+    if (nodes.length === 1) {
+      const n = nodes[0];
+      return typeof n === "string" ? doc.createTextNode(n) : n;
+    }
+    const frag = doc.createDocumentFragment();
+    for (const n of nodes) {
+      frag.appendChild(typeof n === "string" ? doc.createTextNode(n) : n);
+    }
+    return frag;
+  }
+  /** @internal Validate a pre-insertion, throwing DOM-style errors. */
+  _ensurePreInsertionValidity(node, child) {
+    if (this.nodeType !== ELEMENT_NODE && this.nodeType !== DOCUMENT_NODE && this.nodeType !== DOCUMENT_FRAGMENT_NODE) {
+      throw hierarchyRequestError(
+        `Nodes of type '${this.nodeName}' may not have children.`
+      );
+    }
+    let p = this;
+    while (p) {
+      if (p === node) {
+        throw hierarchyRequestError(
+          "The new child element contains the parent."
+        );
+      }
+      p = p._parentNode;
+    }
+    if (child !== null && child._parentNode !== this) {
+      throw notFoundError(
+        "The node before which the new node is to be inserted is not a child of this node."
+      );
+    }
+    if (node.nodeType === DOCUMENT_NODE) {
+      throw hierarchyRequestError("A Document may not be inserted.");
+    }
+    if (this.nodeType === DOCUMENT_NODE) {
+      if (node.nodeType === TEXT_NODE) {
+        throw hierarchyRequestError(
+          "Text nodes may not be children of a Document."
+        );
+      }
+    } else if (node.nodeType === DOCUMENT_TYPE_NODE) {
+      throw hierarchyRequestError(
+        "A DocumentType may only be a child of a Document."
+      );
+    }
+  }
+};
+
+// src/attributes.ts
+var NAME_START = "A-Za-z_\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD";
+var NAME_CHAR = NAME_START + "0-9.\\-\\u00B7\\u0300-\\u036F\\u203F-\\u2040";
+var NC_NAME = `[${NAME_START}][${NAME_CHAR}]*`;
+var NAME_RE = new RegExp(`^[${NAME_START}:][${NAME_CHAR}:]*$`);
+var QNAME_RE = new RegExp(`^(${NC_NAME}:)?${NC_NAME}$`);
+function validateName(name) {
+  if (name === "" || !NAME_RE.test(name)) {
+    throw invalidCharacterError(`The name '${name}' is not a valid name.`);
+  }
+}
+function validateQName(qname) {
+  if (qname === "" || !QNAME_RE.test(qname)) {
+    throw invalidCharacterError(
+      `The qualified name '${qname}' is not a valid qualified name.`
+    );
+  }
+}
+function validateAndExtract(namespace, qualifiedName) {
+  const ns = namespace === "" ? null : namespace;
+  validateQName(qualifiedName);
+  let prefix = null;
+  let localName = qualifiedName;
+  const colon = qualifiedName.indexOf(":");
+  if (colon !== -1) {
+    prefix = qualifiedName.slice(0, colon);
+    localName = qualifiedName.slice(colon + 1);
+  }
+  if (prefix !== null && ns === null) {
+    throw namespaceError("A prefix was given but no namespace.");
+  }
+  if (prefix === "xml" && ns !== XML_NS) {
+    throw namespaceError("The 'xml' prefix must use the XML namespace.");
+  }
+  if ((qualifiedName === "xmlns" || prefix === "xmlns") && ns !== XMLNS_NS) {
+    throw namespaceError("The 'xmlns' name/prefix must use the xmlns namespace.");
+  }
+  if (ns === XMLNS_NS && qualifiedName !== "xmlns" && prefix !== "xmlns") {
+    throw namespaceError(
+      "The xmlns namespace requires the 'xmlns' name or prefix."
+    );
+  }
+  return { namespace: ns, prefix, localName };
+}
+var StaticNamedNodeMap = class {
+  constructor(records) {
+    this.length = records.length;
+    for (let i = 0; i < records.length; i++) {
+      this[i] = { ...records[i] };
+    }
+  }
+  item(index) {
+    return index >= 0 && index < this.length ? this[index] : null;
+  }
+  getNamedItem(name) {
+    for (let i = 0; i < this.length; i++) {
+      if (this[i].name === name) return this[i];
+    }
+    return null;
+  }
+  getNamedItemNS(namespace, localName) {
+    const ns = namespace === "" ? null : namespace;
+    for (let i = 0; i < this.length; i++) {
+      if (this[i].namespaceURI === ns && this[i].localName === localName) {
+        return this[i];
+      }
+    }
+    return null;
+  }
+  *[Symbol.iterator]() {
+    for (let i = 0; i < this.length; i++) yield this[i];
+  }
+};
+
+// src/class-list.ts
+var ASCII_WS = /[ \t\n\f\r]+/;
+function validateToken(token) {
+  if (token === "") {
+    throw syntaxError("The token provided must not be empty.");
+  }
+  if (/[ \t\n\f\r]/.test(token)) {
+    throw invalidCharacterError(
+      "The token provided contains HTML space characters."
+    );
+  }
+}
+var DOMTokenList = class {
+  constructor(owner, attrName = "class") {
+    this.owner = owner;
+    this.attrName = attrName;
+  }
+  tokens() {
+    const raw = this.owner.getAttribute(this.attrName);
+    if (!raw) return [];
+    const set = [];
+    for (const t of raw.split(ASCII_WS)) {
+      if (t !== "" && !set.includes(t)) set.push(t);
+    }
+    return set;
+  }
+  write(tokens) {
+    this.owner.setAttribute(this.attrName, tokens.join(" "));
+  }
+  get length() {
+    return this.tokens().length;
+  }
+  get value() {
+    return this.owner.getAttribute(this.attrName) ?? "";
+  }
+  set value(v) {
+    this.owner.setAttribute(this.attrName, v);
+  }
+  item(index) {
+    return this.tokens()[index] ?? null;
+  }
+  contains(token) {
+    return this.tokens().includes(token);
+  }
+  add(...tokens) {
+    tokens.forEach(validateToken);
+    const set = this.tokens();
+    for (const t of tokens) if (!set.includes(t)) set.push(t);
+    this.write(set);
+  }
+  remove(...tokens) {
+    tokens.forEach(validateToken);
+    const set = this.tokens().filter((t) => !tokens.includes(t));
+    this.write(set);
+  }
+  toggle(token, force) {
+    validateToken(token);
+    const set = this.tokens();
+    const has = set.includes(token);
+    if (has) {
+      if (force === true) return true;
+      this.write(set.filter((t) => t !== token));
+      return false;
+    }
+    if (force === false) return false;
+    set.push(token);
+    this.write(set);
+    return true;
+  }
+  replace(oldToken, newToken) {
+    validateToken(oldToken);
+    validateToken(newToken);
+    const set = this.tokens();
+    const idx = set.indexOf(oldToken);
+    if (idx === -1) return false;
+    if (!set.includes(newToken)) {
+      set[idx] = newToken;
+    } else {
+      set.splice(idx, 1);
+    }
+    this.write(set);
+    return true;
+  }
+  toString() {
+    return this.value;
+  }
+  *[Symbol.iterator]() {
+    yield* this.tokens();
+  }
+};
+
+// src/dataset.ts
+function attrToProp(attr) {
+  if (!attr.startsWith("data-")) return null;
+  const rest = attr.slice(5);
+  if (/-[A-Z]/.test(rest)) return null;
+  return rest.replace(/-([a-z])/g, (_m, c) => c.toUpperCase());
+}
+function propToAttr(prop) {
+  if (/-[a-z]/.test(prop)) {
+    throw syntaxError(
+      `The property name '${prop}' is not a valid dataset name.`
+    );
+  }
+  const name = "data-" + prop.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase());
+  return name;
+}
+function createDataset(owner) {
+  return new Proxy(/* @__PURE__ */ Object.create(null), {
+    get(_t, prop) {
+      if (typeof prop !== "string") return void 0;
+      const v = owner.getAttribute(propToAttr(prop));
+      return v === null ? void 0 : v;
+    },
+    set(_t, prop, value) {
+      if (typeof prop !== "string") return false;
+      owner.setAttribute(propToAttr(prop), String(value));
+      return true;
+    },
+    has(_t, prop) {
+      if (typeof prop !== "string") return false;
+      return owner.getAttribute(propToAttr(prop)) !== null;
+    },
+    deleteProperty(_t, prop) {
+      if (typeof prop !== "string") return false;
+      owner.removeAttribute(propToAttr(prop));
+      return true;
+    },
+    ownKeys() {
+      const keys = [];
+      for (const name of owner.getAttributeNames()) {
+        const prop = attrToProp(name);
+        if (prop !== null) keys.push(prop);
+      }
+      return keys;
+    },
+    getOwnPropertyDescriptor(_t, prop) {
+      if (typeof prop !== "string") return void 0;
+      const v = owner.getAttribute(propToAttr(prop));
+      if (v === null) return void 0;
+      return {
+        value: v,
+        writable: true,
+        enumerable: true,
+        configurable: true
+      };
+    }
+  });
+}
+
+// src/serializer/index.ts
+function escapeText(value, xml) {
+  let out = value.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  out = out.replace(/>/g, "&gt;");
+  if (!xml) out = out.replace(/ /g, "&nbsp;");
+  return out;
+}
+function escapeAttr(value, xml) {
+  let out = value.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+  if (xml) {
+    out = out.replace(/</g, "&lt;");
+  } else {
+    out = out.replace(/ /g, "&nbsp;");
+  }
+  return out;
+}
+function elementQName(el) {
+  return el.prefix ? `${el.prefix}:${el.localName}` : el.localName;
+}
+function serializeAttributes(el, xml) {
+  let out = "";
+  for (const a of el._attributes) {
+    out += ` ${a.name}="${escapeAttr(a.value, xml)}"`;
+  }
+  return out;
+}
+function serializeDoctype(dt) {
+  let out = `<!DOCTYPE ${dt.name}`;
+  if (dt.publicId) {
+    out += ` PUBLIC "${dt.publicId}"`;
+    if (dt.systemId) out += ` "${dt.systemId}"`;
+  } else if (dt.systemId) {
+    out += ` SYSTEM "${dt.systemId}"`;
+  }
+  return out + ">";
+}
+function isVoidElement(el, xml) {
+  if (xml) return false;
+  return (el.namespaceURI === HTML_NS || el.namespaceURI === null) && VOID_ELEMENTS.has(el.localName);
+}
+function isRawText(el, xml) {
+  return !xml && (el.namespaceURI === HTML_NS || el.namespaceURI === null) && RAW_TEXT_ELEMENTS.has(el.localName);
+}
+function serializeInto(parts, roots, xml) {
+  const stack = [];
+  for (let i = roots.length - 1; i >= 0; i--) stack.push(roots[i]);
+  while (stack.length) {
+    const item = stack.pop();
+    if (typeof item === "string") {
+      parts.push(item);
+      continue;
+    }
+    const node = item;
+    switch (node.nodeType) {
+      case ELEMENT_NODE: {
+        const el = node;
+        const qname = elementQName(el);
+        const attrs = serializeAttributes(el, xml);
+        const kids = el._childNodes;
+        if (isVoidElement(el, xml)) {
+          parts.push(`<${qname}${attrs}>`);
+          break;
+        }
+        if (xml && kids.length === 0) {
+          parts.push(`<${qname}${attrs}/>`);
+          break;
+        }
+        parts.push(`<${qname}${attrs}>`);
+        stack.push(`</${qname}>`);
+        if (isRawText(el, xml)) {
+          let raw = "";
+          for (const c of kids) {
+            if (c.nodeType === TEXT_NODE) {
+              raw += c.data;
+            }
+          }
+          parts.push(raw);
+        } else {
+          for (let i = kids.length - 1; i >= 0; i--) stack.push(kids[i]);
+        }
+        break;
+      }
+      case TEXT_NODE: {
+        parts.push(escapeText(node.data, xml));
+        break;
+      }
+      case COMMENT_NODE: {
+        parts.push(`<!--${node.data}-->`);
+        break;
+      }
+      case DOCUMENT_TYPE_NODE: {
+        parts.push(serializeDoctype(node));
+        break;
+      }
+      case DOCUMENT_NODE:
+      case DOCUMENT_FRAGMENT_NODE: {
+        const kids = node._childNodes;
+        for (let i = kids.length - 1; i >= 0; i--) stack.push(kids[i]);
+        break;
+      }
+      default:
+        break;
+    }
+  }
+}
+function serializeNode(node, options = {}) {
+  const parts = [];
+  serializeInto(parts, [node], !!options.xml);
+  return parts.join("");
+}
+function serializeChildren(node, options = {}) {
+  const parts = [];
+  serializeInto(parts, node._childNodes, !!options.xml);
+  return parts.join("");
+}
+function serialize(node, options = {}) {
+  return serializeNode(node, options);
+}
+function serializeHTML(node) {
+  return serializeNode(node, { xml: false });
+}
+function serializeXML(node) {
+  return serializeNode(node, { xml: true });
+}
+
+// src/parser/entities.ts
+var NAMED_ENTITIES = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  nbsp: "\xA0",
+  copy: "\xA9",
+  reg: "\xAE",
+  trade: "\u2122",
+  hellip: "\u2026",
+  mdash: "\u2014",
+  ndash: "\u2013",
+  lsquo: "\u2018",
+  rsquo: "\u2019",
+  ldquo: "\u201C",
+  rdquo: "\u201D",
+  laquo: "\xAB",
+  raquo: "\xBB",
+  times: "\xD7",
+  divide: "\xF7",
+  deg: "\xB0",
+  plusmn: "\xB1",
+  micro: "\xB5",
+  para: "\xB6",
+  sect: "\xA7",
+  middot: "\xB7",
+  bull: "\u2022",
+  dagger: "\u2020",
+  Dagger: "\u2021",
+  euro: "\u20AC",
+  pound: "\xA3",
+  yen: "\xA5",
+  cent: "\xA2",
+  frac12: "\xBD",
+  frac14: "\xBC",
+  frac34: "\xBE",
+  sup2: "\xB2",
+  sup3: "\xB3",
+  szlig: "\xDF",
+  agrave: "\xE0",
+  aacute: "\xE1",
+  eacute: "\xE9",
+  egrave: "\xE8",
+  ccedil: "\xE7",
+  ntilde: "\xF1",
+  uuml: "\xFC",
+  ouml: "\xF6",
+  auml: "\xE4",
+  Auml: "\xC4",
+  Ouml: "\xD6",
+  Uuml: "\xDC",
+  emsp: "\u2003",
+  ensp: "\u2002",
+  thinsp: "\u2009",
+  zwnj: "\u200C",
+  zwj: "\u200D",
+  larr: "\u2190",
+  uarr: "\u2191",
+  rarr: "\u2192",
+  darr: "\u2193",
+  harr: "\u2194",
+  spades: "\u2660",
+  clubs: "\u2663",
+  hearts: "\u2665",
+  diams: "\u2666"
+};
+var ENTITY_RE = /&(#[xX][0-9a-fA-F]+|#[0-9]+|[a-zA-Z][a-zA-Z0-9]*);/g;
+function codePointToString(cp) {
+  if (cp <= 0 || cp > 1114111 || cp >= 55296 && cp <= 57343) {
+    return "\uFFFD";
+  }
+  return String.fromCodePoint(cp);
+}
+function decodeEntities(input) {
+  if (input.indexOf("&") === -1) return input;
+  return input.replace(ENTITY_RE, (match, body) => {
+    if (body[0] === "#") {
+      const isHex = body[1] === "x" || body[1] === "X";
+      const num = parseInt(body.slice(isHex ? 2 : 1), isHex ? 16 : 10);
+      if (Number.isNaN(num)) return match;
+      return codePointToString(num);
+    }
+    const replacement = NAMED_ENTITIES[body];
+    return replacement !== void 0 ? replacement : match;
+  });
+}
+
+// src/parser/index.ts
+var WS = /\s/;
+function parseFragment(html, ownerDocument, context) {
+  const frag = ownerDocument.createDocumentFragment();
+  const baseNS = context ? context.namespaceURI : ownerDocument._html ? HTML_NS : null;
+  const open = [];
+  const currentParent = () => open.length ? open[open.length - 1].el : frag;
+  const currentNS = () => open.length ? open[open.length - 1].ns : baseNS;
+  const len = html.length;
+  let i = 0;
+  while (i < len) {
+    const top = open[open.length - 1];
+    if (top && top.raw) {
+      const closeIdx = indexOfCloseTag(html, i, top.localName);
+      const end2 = closeIdx === -1 ? len : closeIdx;
+      let content = html.slice(i, end2);
+      if (content) {
+        if (top.decode) content = decodeEntities(content);
+        top.el._appendChildFast(ownerDocument.createTextNode(content));
+      }
+      i = end2;
+      if (closeIdx === -1) break;
+    }
+    const c = html[i];
+    if (c === "<") {
+      if (html.startsWith("<!--", i)) {
+        const end2 = html.indexOf("-->", i + 4);
+        const stop = end2 === -1 ? len : end2;
+        currentParent()._appendChildFast(
+          ownerDocument.createComment(html.slice(i + 4, stop))
+        );
+        i = end2 === -1 ? len : end2 + 3;
+        continue;
+      }
+      if (html.startsWith("<!", i) || html.startsWith("<?", i)) {
+        const end2 = html.indexOf(">", i);
+        i = end2 === -1 ? len : end2 + 1;
+        continue;
+      }
+      if (html.startsWith("</", i)) {
+        const end2 = html.indexOf(">", i);
+        const raw2 = html.slice(i + 2, end2 === -1 ? len : end2).trim();
+        const name = raw2.split(/\s/)[0] ?? "";
+        closeTag(open, name);
+        i = end2 === -1 ? len : end2 + 1;
+        continue;
+      }
+      const parsed = parseStartTag(html, i);
+      if (!parsed) {
+        currentParent()._appendChildFast(ownerDocument.createTextNode("<"));
+        i += 1;
+        continue;
+      }
+      const { tagName, attrs, selfClosing, next: next2 } = parsed;
+      i = next2;
+      const ns = resolveNamespace(tagName, currentNS());
+      const el = createElement(ownerDocument, ns, tagName);
+      applyAttributes(el, attrs);
+      currentParent()._appendChildFast(el);
+      const lower = tagName.toLowerCase();
+      const isVoid = (ns === HTML_NS || ns === null) && VOID_ELEMENTS.has(lower);
+      if (selfClosing || isVoid) {
+        continue;
+      }
+      const raw = (ns === HTML_NS || ns === null) && RAW_TEXT_ELEMENTS.has(lower);
+      const escapable = (ns === HTML_NS || ns === null) && ESCAPABLE_RAW_TEXT_ELEMENTS.has(lower);
+      open.push({
+        el,
+        ns,
+        localName: el.localName,
+        raw: raw || escapable,
+        decode: escapable
+      });
+      continue;
+    }
+    const next = html.indexOf("<", i);
+    const end = next === -1 ? len : next;
+    const text = html.slice(i, end);
+    currentParent()._appendChildFast(
+      ownerDocument.createTextNode(decodeEntities(text))
+    );
+    i = end;
+  }
+  return frag;
+}
+function indexOfCloseTag(html, from, localName) {
+  const needle = "</" + localName.toLowerCase();
+  const lower = html.toLowerCase();
+  return lower.indexOf(needle, from);
+}
+function closeTag(open, name) {
+  const lower = name.toLowerCase();
+  for (let j = open.length - 1; j >= 0; j--) {
+    if (open[j].localName.toLowerCase() === lower) {
+      open.length = j;
+      return;
+    }
+  }
+}
+function parseStartTag(html, start) {
+  let i = start + 1;
+  const len = html.length;
+  const nameStart = i;
+  while (i < len && !WS.test(html[i]) && html[i] !== ">" && html[i] !== "/") {
+    i++;
+  }
+  const tagName = html.slice(nameStart, i);
+  if (tagName === "") return null;
+  const attrs = [];
+  let selfClosing = false;
+  while (i < len) {
+    while (i < len && WS.test(html[i])) i++;
+    if (i >= len) break;
+    if (html[i] === ">") {
+      i++;
+      break;
+    }
+    if (html[i] === "/") {
+      i++;
+      if (html[i] === ">") {
+        selfClosing = true;
+        i++;
+        break;
+      }
+      continue;
+    }
+    const attrNameStart = i;
+    while (i < len && !WS.test(html[i]) && html[i] !== "=" && html[i] !== ">" && html[i] !== "/") {
+      i++;
+    }
+    const attrName = html.slice(attrNameStart, i);
+    while (i < len && WS.test(html[i])) i++;
+    let value = "";
+    if (html[i] === "=") {
+      i++;
+      while (i < len && WS.test(html[i])) i++;
+      const quote = html[i];
+      if (quote === '"' || quote === "'") {
+        i++;
+        const vStart = i;
+        while (i < len && html[i] !== quote) i++;
+        value = html.slice(vStart, i);
+        i++;
+      } else {
+        const vStart = i;
+        while (i < len && !WS.test(html[i]) && html[i] !== ">") i++;
+        value = html.slice(vStart, i);
+      }
+    }
+    if (attrName) attrs.push({ name: attrName, value });
+  }
+  return { tagName, attrs, selfClosing, next: i };
+}
+function resolveNamespace(tagName, parentNS) {
+  const lower = tagName.toLowerCase();
+  if (parentNS === HTML_NS || parentNS === null) {
+    if (lower === "svg") return SVG_NS;
+    if (lower === "math") return MATHML_NS;
+  }
+  return parentNS;
+}
+function createElement(doc, ns, tagName) {
+  if (ns === null) return doc.createElement(tagName);
+  const localName = ns === HTML_NS ? tagName.toLowerCase() : tagName;
+  return doc.createElementNS(ns, localName);
+}
+function applyAttributes(el, attrs) {
+  for (const { name, value } of attrs) {
+    const decoded = decodeEntities(value);
+    const colon = name.indexOf(":");
+    if (colon > 0) {
+      const prefix = name.slice(0, colon);
+      const ns = prefix === "xlink" ? XLINK_NS : prefix === "xml" ? XML_NS : prefix === "xmlns" ? XMLNS_NS : null;
+      if (ns) {
+        el.setAttributeNS(ns, name, decoded);
+        continue;
+      }
+    } else if (name === "xmlns") {
+      el.setAttributeNS(XMLNS_NS, "xmlns", decoded);
+      continue;
+    }
+    try {
+      el.setAttribute(name, decoded);
+    } catch {
+    }
+  }
+}
+
+// src/selectors/parser.ts
+var IDENT = /[-\w\u00A0-\uFFFF]/;
+var SelectorParser = class {
+  constructor(src) {
+    this.src = src;
+    this.i = 0;
+  }
+  parse() {
+    const list = this.parseSelectorList();
+    this.ws();
+    if (this.i < this.src.length) {
+      throw syntaxError(`Unexpected token in selector: '${this.src}'`);
+    }
+    return list;
+  }
+  ws() {
+    while (this.i < this.src.length && /\s/.test(this.src[this.i])) this.i++;
+  }
+  peek() {
+    return this.src[this.i];
+  }
+  parseSelectorList() {
+    const list = [this.parseComplex()];
+    this.ws();
+    while (this.peek() === ",") {
+      this.i++;
+      this.ws();
+      list.push(this.parseComplex());
+      this.ws();
+    }
+    return list;
+  }
+  parseComplex() {
+    const parts = [];
+    this.ws();
+    parts.push({ combinator: null, compound: this.parseCompound() });
+    for (; ; ) {
+      const combinator = this.parseCombinator();
+      if (combinator === null) break;
+      parts.push({ combinator, compound: this.parseCompound() });
+    }
+    return parts;
+  }
+  parseCombinator() {
+    const before = this.i;
+    let sawSpace = false;
+    while (this.i < this.src.length && /\s/.test(this.src[this.i])) {
+      this.i++;
+      sawSpace = true;
+    }
+    const c = this.peek();
+    if (c === ">" || c === "+" || c === "~") {
+      this.i++;
+      this.ws();
+      return c;
+    }
+    if (sawSpace && this.i < this.src.length && c !== "," && c !== ")") {
+      return " ";
+    }
+    this.i = before;
+    return null;
+  }
+  parseCompound() {
+    const conditions = [];
+    for (; ; ) {
+      const c = this.peek();
+      if (c === void 0) break;
+      if (c === "*") {
+        this.i++;
+        conditions.push({ kind: "universal" });
+      } else if (c === "#") {
+        this.i++;
+        conditions.push({ kind: "id", id: this.readIdent() });
+      } else if (c === ".") {
+        this.i++;
+        conditions.push({ kind: "class", name: this.readIdent() });
+      } else if (c === "[") {
+        conditions.push(this.parseAttribute());
+      } else if (c === ":") {
+        conditions.push(this.parsePseudo());
+      } else if (IDENT.test(c) || c === "|") {
+        conditions.push({ kind: "type", name: this.readTypeName() });
+      } else {
+        break;
+      }
+    }
+    if (conditions.length === 0) {
+      throw syntaxError(`Empty compound selector in '${this.src}'`);
+    }
+    return { conditions };
+  }
+  readIdent() {
+    const start = this.i;
+    while (this.i < this.src.length && IDENT.test(this.src[this.i])) this.i++;
+    if (this.i === start) {
+      throw syntaxError(`Expected identifier in '${this.src}'`);
+    }
+    return this.src.slice(start, this.i);
+  }
+  readTypeName() {
+    const start = this.i;
+    while (this.i < this.src.length && (IDENT.test(this.src[this.i]) || this.src[this.i] === "|" || this.src[this.i] === "*")) {
+      this.i++;
+    }
+    const raw = this.src.slice(start, this.i);
+    const bar = raw.indexOf("|");
+    return bar === -1 ? raw : raw.slice(bar + 1);
+  }
+  parseAttribute() {
+    this.i++;
+    this.ws();
+    let name = this.readAttrName();
+    this.ws();
+    const c = this.peek();
+    if (c === "]") {
+      this.i++;
+      return { kind: "attr", name };
+    }
+    let op;
+    if (c === "=") {
+      op = "=";
+      this.i++;
+    } else if ("~|^$*".includes(c) && this.src[this.i + 1] === "=") {
+      op = c + "=";
+      this.i += 2;
+    } else {
+      throw syntaxError(`Invalid attribute operator in '${this.src}'`);
+    }
+    this.ws();
+    const value = this.readAttrValue();
+    this.ws();
+    let caseInsensitive = false;
+    const flag = this.peek();
+    if (flag === "i" || flag === "I") {
+      caseInsensitive = true;
+      this.i++;
+      this.ws();
+    } else if (flag === "s" || flag === "S") {
+      this.i++;
+      this.ws();
+    }
+    if (this.peek() !== "]") {
+      throw syntaxError(`Unterminated attribute selector in '${this.src}'`);
+    }
+    this.i++;
+    return {
+      kind: "attr",
+      name,
+      op,
+      value,
+      caseInsensitive
+    };
+  }
+  readAttrName() {
+    const start = this.i;
+    while (this.i < this.src.length) {
+      const ch = this.src[this.i];
+      if (ch === "|" && this.src[this.i + 1] === "=") break;
+      if (IDENT.test(ch) || ch === "|" || ch === ":") {
+        this.i++;
+        continue;
+      }
+      break;
+    }
+    const raw = this.src.slice(start, this.i);
+    if (raw === "") throw syntaxError(`Expected attribute name in '${this.src}'`);
+    return raw;
+  }
+  readAttrValue() {
+    const q = this.peek();
+    if (q === '"' || q === "'") {
+      this.i++;
+      const start2 = this.i;
+      while (this.i < this.src.length && this.src[this.i] !== q) this.i++;
+      const v = this.src.slice(start2, this.i);
+      this.i++;
+      return v;
+    }
+    const start = this.i;
+    while (this.i < this.src.length && !/\s/.test(this.src[this.i]) && this.src[this.i] !== "]") {
+      this.i++;
+    }
+    return this.src.slice(start, this.i);
+  }
+  parsePseudo() {
+    this.i++;
+    if (this.peek() === ":") this.i++;
+    const name = this.readIdent().toLowerCase();
+    if (this.peek() === "(") {
+      this.i++;
+      this.ws();
+      if (name === "nth-child" || name === "nth-last-child") {
+        const nth = this.parseNth();
+        this.ws();
+        if (this.peek() !== ")") {
+          throw syntaxError(`Unterminated :${name}() in '${this.src}'`);
+        }
+        this.i++;
+        return { kind: "pseudo", name, nth };
+      }
+      const inner = this.parseSelectorList();
+      this.ws();
+      if (this.peek() !== ")") {
+        throw syntaxError(`Unterminated :${name}() in '${this.src}'`);
+      }
+      this.i++;
+      return { kind: "pseudo", name, selectors: inner };
+    }
+    return { kind: "pseudo", name };
+  }
+  parseNth() {
+    const start = this.i;
+    while (this.i < this.src.length && this.src[this.i] !== ")") this.i++;
+    const raw = this.src.slice(start, this.i).trim().toLowerCase();
+    return parseNthExpression(raw);
+  }
+};
+function parseNthExpression(raw) {
+  if (raw === "odd") return { a: 2, b: 1 };
+  if (raw === "even") return { a: 2, b: 0 };
+  const m = raw.replace(/\s+/g, "").match(/^([+-]?\d*)n([+-]\d+)?$/);
+  if (m) {
+    let a = m[1];
+    if (a === "" || a === "+") a = "1";
+    else if (a === "-") a = "-1";
+    return { a: parseInt(a, 10), b: m[2] ? parseInt(m[2], 10) : 0 };
+  }
+  const n = parseInt(raw, 10);
+  if (!Number.isNaN(n)) return { a: 0, b: n };
+  throw syntaxError(`Invalid nth expression: '${raw}'`);
+}
+var cache = /* @__PURE__ */ new Map();
+function parseSelector(selector) {
+  const cached = cache.get(selector);
+  if (cached) return cached;
+  const parsed = new SelectorParser(selector).parse();
+  cache.set(selector, parsed);
+  return parsed;
+}
+
+// src/selectors/index.ts
+function isElement(n) {
+  return n.nodeType === ELEMENT_NODE;
+}
+function elementChildren(node) {
+  const out = [];
+  for (const c of node._childNodes) if (isElement(c)) out.push(c);
+  return out;
+}
+function matchType(el, name) {
+  if (el.namespaceURI === HTML_NS) {
+    return el.localName.toLowerCase() === name.toLowerCase();
+  }
+  return el.localName === name;
+}
+function matchAttr(el, cond) {
+  const bar = cond.name.indexOf("|");
+  const lookup = bar === -1 ? cond.name : cond.name.slice(bar + 1);
+  const actual = el.getAttribute(lookup);
+  if (actual === null) return false;
+  if (cond.op === void 0) return true;
+  let a = actual;
+  let v = cond.value ?? "";
+  if (cond.caseInsensitive) {
+    a = a.toLowerCase();
+    v = v.toLowerCase();
+  }
+  switch (cond.op) {
+    case "=":
+      return a === v;
+    case "~=":
+      return v !== "" && a.split(/\s+/).includes(v);
+    case "|=":
+      return a === v || a.startsWith(v + "-");
+    case "^=":
+      return v !== "" && a.startsWith(v);
+    case "$=":
+      return v !== "" && a.endsWith(v);
+    case "*=":
+      return v !== "" && a.includes(v);
+    default:
+      return false;
+  }
+}
+function nthMatches(index1, { a, b }) {
+  if (a === 0) return index1 === b;
+  const n = (index1 - b) / a;
+  return Number.isInteger(n) && n >= 0;
+}
+function matchPseudo(el, cond) {
+  switch (cond.name) {
+    case "first-child":
+      return el.previousElementSibling === null;
+    case "last-child":
+      return el.nextElementSibling === null;
+    case "only-child":
+      return el.previousElementSibling === null && el.nextElementSibling === null;
+    case "first-of-type":
+      return firstOfType(el, true);
+    case "last-of-type":
+      return firstOfType(el, false);
+    case "empty":
+      return isEmpty(el);
+    case "root":
+      return el.parentNode !== null && el.parentNode.nodeType === DOCUMENT_NODE;
+    case "not":
+      return !(cond.selectors ?? []).some((c) => matchComplexAgainst(el, c));
+    case "is":
+    case "where":
+      return (cond.selectors ?? []).some((c) => matchComplexAgainst(el, c));
+    case "nth-child":
+    case "nth-last-child": {
+      if (!cond.nth || !el.parentNode) return false;
+      const sibs = elementChildren(el.parentNode);
+      let idx = sibs.indexOf(el);
+      if (idx === -1) return false;
+      const index1 = cond.name === "nth-child" ? idx + 1 : sibs.length - idx;
+      return nthMatches(index1, cond.nth);
+    }
+    default:
+      return false;
+  }
+}
+function firstOfType(el, first) {
+  const p = el.parentNode;
+  if (!p) return true;
+  const sibs = elementChildren(p).filter(
+    (s) => s.localName === el.localName && s.namespaceURI === el.namespaceURI
+  );
+  return first ? sibs[0] === el : sibs[sibs.length - 1] === el;
+}
+function isEmpty(el) {
+  for (const c of el._childNodes) {
+    if (c.nodeType === ELEMENT_NODE) return false;
+    if (c.nodeType === TEXT_NODE && c.data !== "") {
+      return false;
+    }
+  }
+  return true;
+}
+function matchCompound(el, compound) {
+  for (const cond of compound.conditions) {
+    switch (cond.kind) {
+      case "universal":
+        break;
+      case "type":
+        if (!matchType(el, cond.name)) return false;
+        break;
+      case "id":
+        if (el.getAttribute("id") !== cond.id) return false;
+        break;
+      case "class":
+        if (!el.classList.contains(cond.name)) return false;
+        break;
+      case "attr":
+        if (!matchAttr(el, cond)) return false;
+        break;
+      case "pseudo":
+        if (!matchPseudo(el, cond)) return false;
+        break;
+    }
+  }
+  return true;
+}
+function matchComplexParts(el, parts, index) {
+  if (!matchCompound(el, parts[index].compound)) return false;
+  if (index === 0) return true;
+  const combinator = parts[index].combinator;
+  switch (combinator) {
+    case " ": {
+      let a = el.parentElement;
+      while (a) {
+        if (matchComplexParts(a, parts, index - 1)) return true;
+        a = a.parentElement;
+      }
+      return false;
+    }
+    case ">": {
+      const p = el.parentElement;
+      return p ? matchComplexParts(p, parts, index - 1) : false;
+    }
+    case "+": {
+      const prev = el.previousElementSibling;
+      return prev ? matchComplexParts(prev, parts, index - 1) : false;
+    }
+    case "~": {
+      let s = el.previousElementSibling;
+      while (s) {
+        if (matchComplexParts(s, parts, index - 1)) return true;
+        s = s.previousElementSibling;
+      }
+      return false;
+    }
+    default:
+      return false;
+  }
+}
+function matchComplexAgainst(el, complex) {
+  return matchComplexParts(el, complex, complex.length - 1);
+}
+function matchesList(el, list) {
+  return list.some((complex) => matchComplexAgainst(el, complex));
+}
+function* descendantElements(root) {
+  const stack = [];
+  for (let i = root._childNodes.length - 1; i >= 0; i--) {
+    stack.push(root._childNodes[i]);
+  }
+  while (stack.length) {
+    const n = stack.pop();
+    if (isElement(n)) yield n;
+    for (let i = n._childNodes.length - 1; i >= 0; i--) {
+      stack.push(n._childNodes[i]);
+    }
+  }
+}
+function matches(el, selector) {
+  return matchesList(el, parseSelector(selector));
+}
+function closest(el, selector) {
+  const list = parseSelector(selector);
+  let current = el;
+  while (current) {
+    if (matchesList(current, list)) return current;
+    current = current.parentElement;
+  }
+  return null;
+}
+function querySelector(root, selector) {
+  const list = parseSelector(selector);
+  for (const el of descendantElements(root)) {
+    if (matchesList(el, list)) return el;
+  }
+  return null;
+}
+function querySelectorAll(root, selector) {
+  const list = parseSelector(selector);
+  const out = [];
+  for (const el of descendantElements(root)) {
+    if (matchesList(el, list)) out.push(el);
+  }
+  return createNodeList(out);
+}
+
+// src/element.ts
+var VElement = class _VElement extends VNode {
+  constructor(namespaceURI, prefix, localName) {
+    super();
+    this.nodeType = ELEMENT_NODE;
+    /** @internal Ordered attribute records. */
+    this._attributes = [];
+    this.namespaceURI = namespaceURI;
+    this.prefix = prefix;
+    this.localName = localName;
+  }
+  // --- Names ---------------------------------------------------------------
+  get _qualifiedName() {
+    return this.prefix ? `${this.prefix}:${this.localName}` : this.localName;
+  }
+  /** True when this element behaves as an HTML element (case-insensitive). */
+  _isHtml() {
+    return this.namespaceURI === HTML_NS && !!this._ownerDocument?._html;
+  }
+  get tagName() {
+    return this._isHtml() ? this._qualifiedName.toUpperCase() : this._qualifiedName;
+  }
+  get nodeName() {
+    return this.tagName;
+  }
+  /** @internal Lowercase attribute names for HTML elements. */
+  _adjustAttrName(name) {
+    return this._isHtml() ? name.toLowerCase() : name;
+  }
+  // --- Attributes ----------------------------------------------------------
+  get attributes() {
+    return new StaticNamedNodeMap(this._attributes);
+  }
+  getAttributeNames() {
+    return this._attributes.map((a) => a.name);
+  }
+  hasAttributes() {
+    return this._attributes.length > 0;
+  }
+  getAttribute(name) {
+    const adjusted = this._adjustAttrName(name);
+    const rec = this._attributes.find((a) => a.name === adjusted);
+    return rec ? rec.value : null;
+  }
+  getAttributeNS(namespace, localName) {
+    const ns = namespace === "" ? null : namespace;
+    const rec = this._attributes.find(
+      (a) => a.namespaceURI === ns && a.localName === localName
+    );
+    return rec ? rec.value : null;
+  }
+  setAttribute(name, value) {
+    validateName(name);
+    const adjusted = this._adjustAttrName(name);
+    const str = String(value);
+    const rec = this._attributes.find((a) => a.name === adjusted);
+    if (rec) {
+      rec.value = str;
+      return;
+    }
+    this._attributes.push({
+      namespaceURI: null,
+      prefix: null,
+      localName: adjusted,
+      name: adjusted,
+      value: str
+    });
+  }
+  setAttributeNS(namespace, qualifiedName, value) {
+    const { namespace: ns, prefix, localName } = validateAndExtract(
+      namespace,
+      qualifiedName
+    );
+    const str = String(value);
+    const rec = this._attributes.find(
+      (a) => a.namespaceURI === ns && a.localName === localName
+    );
+    if (rec) {
+      rec.value = str;
+      return;
+    }
+    this._attributes.push({
+      namespaceURI: ns,
+      prefix,
+      localName,
+      name: qualifiedName,
+      value: str
+    });
+  }
+  removeAttribute(name) {
+    const adjusted = this._adjustAttrName(name);
+    const i = this._attributes.findIndex((a) => a.name === adjusted);
+    if (i !== -1) this._attributes.splice(i, 1);
+  }
+  removeAttributeNS(namespace, localName) {
+    const ns = namespace === "" ? null : namespace;
+    const i = this._attributes.findIndex(
+      (a) => a.namespaceURI === ns && a.localName === localName
+    );
+    if (i !== -1) this._attributes.splice(i, 1);
+  }
+  hasAttribute(name) {
+    const adjusted = this._adjustAttrName(name);
+    return this._attributes.some((a) => a.name === adjusted);
+  }
+  hasAttributeNS(namespace, localName) {
+    const ns = namespace === "" ? null : namespace;
+    return this._attributes.some(
+      (a) => a.namespaceURI === ns && a.localName === localName
+    );
+  }
+  toggleAttribute(name, force) {
+    validateName(name);
+    const adjusted = this._adjustAttrName(name);
+    const exists = this._attributes.some((a) => a.name === adjusted);
+    if (!exists) {
+      if (force === false) return false;
+      this._attributes.push({
+        namespaceURI: null,
+        prefix: null,
+        localName: adjusted,
+        name: adjusted,
+        value: ""
+      });
+      return true;
+    }
+    if (force === true) return true;
+    this.removeAttribute(adjusted);
+    return false;
+  }
+  // --- Reflected properties ------------------------------------------------
+  get id() {
+    return this.getAttribute("id") ?? "";
+  }
+  set id(value) {
+    this.setAttribute("id", value);
+  }
+  get className() {
+    return this.getAttribute("class") ?? "";
+  }
+  set className(value) {
+    this.setAttribute("class", value);
+  }
+  get classList() {
+    if (!this._classList) this._classList = new DOMTokenList(this);
+    return this._classList;
+  }
+  get dataset() {
+    if (!this._dataset) this._dataset = createDataset(this);
+    return this._dataset;
+  }
+  // --- Element traversal ---------------------------------------------------
+  get children() {
+    return createNodeList(
+      this._childNodes.filter(
+        (n) => n.nodeType === ELEMENT_NODE
+      )
+    );
+  }
+  get childElementCount() {
+    let count = 0;
+    for (const c of this._childNodes) if (c.nodeType === ELEMENT_NODE) count++;
+    return count;
+  }
+  get firstElementChild() {
+    for (const c of this._childNodes) {
+      if (c.nodeType === ELEMENT_NODE) return c;
+    }
+    return null;
+  }
+  get lastElementChild() {
+    for (let i = this._childNodes.length - 1; i >= 0; i--) {
+      if (this._childNodes[i].nodeType === ELEMENT_NODE) {
+        return this._childNodes[i];
+      }
+    }
+    return null;
+  }
+  get previousElementSibling() {
+    const p = this._parentNode;
+    if (!p) return null;
+    const i = p._childNodes.indexOf(this);
+    for (let j = i - 1; j >= 0; j--) {
+      if (p._childNodes[j].nodeType === ELEMENT_NODE) {
+        return p._childNodes[j];
+      }
+    }
+    return null;
+  }
+  get nextElementSibling() {
+    const p = this._parentNode;
+    if (!p) return null;
+    const i = p._childNodes.indexOf(this);
+    for (let j = i + 1; j < p._childNodes.length; j++) {
+      if (p._childNodes[j].nodeType === ELEMENT_NODE) {
+        return p._childNodes[j];
+      }
+    }
+    return null;
+  }
+  // --- Serialization / parsing --------------------------------------------
+  get innerHTML() {
+    return serializeChildren(this, { xml: !this._ownerDocument?._html });
+  }
+  set innerHTML(html) {
+    this._removeAllChildren();
+    const frag = parseFragment(html, this._nodeDocument(), this);
+    this.appendChild(frag);
+  }
+  get outerHTML() {
+    return serializeNode(this, { xml: !this._ownerDocument?._html });
+  }
+  set outerHTML(html) {
+    const parent = this._parentNode;
+    if (!parent) {
+      throw syntaxError(
+        "Failed to set 'outerHTML': This element has no parent node."
+      );
+    }
+    const frag = parseFragment(html, this._nodeDocument(), parent);
+    parent.replaceChild(frag, this);
+  }
+  insertAdjacentHTML(position, html) {
+    const context = position === "beforebegin" || position === "afterend" ? this._parentNode : this;
+    if (!context) return;
+    const frag = parseFragment(html, this._nodeDocument(), context);
+    this._insertAdjacent(position, frag);
+  }
+  insertAdjacentElement(position, element) {
+    this._insertAdjacent(position, element);
+    return element;
+  }
+  insertAdjacentText(position, text) {
+    this._insertAdjacent(position, this._nodeDocument().createTextNode(text));
+  }
+  _insertAdjacent(position, node) {
+    switch (position) {
+      case "beforebegin":
+        this._parentNode?.insertBefore(node, this);
+        break;
+      case "afterbegin":
+        this.insertBefore(node, this.firstChild);
+        break;
+      case "beforeend":
+        this.appendChild(node);
+        break;
+      case "afterend":
+        this._parentNode?.insertBefore(node, this.nextSibling);
+        break;
+    }
+  }
+  // --- Selectors -----------------------------------------------------------
+  matches(selector) {
+    return matches(this, selector);
+  }
+  closest(selector) {
+    return closest(this, selector);
+  }
+  querySelector(selector) {
+    return querySelector(this, selector);
+  }
+  querySelectorAll(selector) {
+    return querySelectorAll(this, selector);
+  }
+  // --- Cloning -------------------------------------------------------------
+  _shallowClone() {
+    const clone = new _VElement(this.namespaceURI, this.prefix, this.localName);
+    clone._ownerDocument = this._ownerDocument;
+    clone._attributes = this._attributes.map((a) => ({ ...a }));
+    return clone;
+  }
+};
+
+// src/character-data.ts
+var VCharacterData = class extends VNode {
+  constructor(data) {
+    super();
+    this.data = data;
+  }
+  get length() {
+    return this.data.length;
+  }
+  get nodeValue() {
+    return this.data;
+  }
+  set nodeValue(value) {
+    this.data = value ?? "";
+  }
+  get textContent() {
+    return this.data;
+  }
+  set textContent(value) {
+    this.data = value ?? "";
+  }
+  appendData(data) {
+    this.data += data;
+  }
+};
+
+// src/text.ts
+var VText = class _VText extends VCharacterData {
+  constructor() {
+    super(...arguments);
+    this.nodeType = TEXT_NODE;
+  }
+  get nodeName() {
+    return "#text";
+  }
+  /** DOM alias for the text content. */
+  get wholeText() {
+    return this.data;
+  }
+  _shallowClone() {
+    const clone = new _VText(this.data);
+    clone._ownerDocument = this._ownerDocument;
+    return clone;
+  }
+};
+
+// src/comment.ts
+var VComment = class _VComment extends VCharacterData {
+  constructor() {
+    super(...arguments);
+    this.nodeType = COMMENT_NODE;
+  }
+  get nodeName() {
+    return "#comment";
+  }
+  _shallowClone() {
+    const clone = new _VComment(this.data);
+    clone._ownerDocument = this._ownerDocument;
+    return clone;
+  }
+};
+
+// src/document-fragment.ts
+var VDocumentFragment = class _VDocumentFragment extends VNode {
+  constructor() {
+    super(...arguments);
+    this.nodeType = DOCUMENT_FRAGMENT_NODE;
+  }
+  get nodeName() {
+    return "#document-fragment";
+  }
+  _shallowClone() {
+    const clone = new _VDocumentFragment();
+    clone._ownerDocument = this._ownerDocument;
+    return clone;
+  }
+};
+
+// src/document-type.ts
+var VDocumentType = class _VDocumentType extends VNode {
+  constructor(name, publicId = "", systemId = "") {
+    super();
+    this.nodeType = DOCUMENT_TYPE_NODE;
+    this.name = name;
+    this.publicId = publicId;
+    this.systemId = systemId;
+  }
+  get nodeName() {
+    return this.name;
+  }
+  _shallowClone() {
+    const clone = new _VDocumentType(this.name, this.publicId, this.systemId);
+    clone._ownerDocument = this._ownerDocument;
+    return clone;
+  }
+};
+
+// src/document.ts
+var VDocument = class _VDocument extends VNode {
+  constructor(mode = "html") {
+    super();
+    this.nodeType = DOCUMENT_NODE;
+    this.mode = mode;
+    this._html = mode === "html";
+    this._ownerDocument = null;
+  }
+  get nodeName() {
+    return "#document";
+  }
+  // --- Factories -----------------------------------------------------------
+  createElement(tagName) {
+    validateName(tagName);
+    if (this._html) {
+      const el2 = new VElement(HTML_NS, null, tagName.toLowerCase());
+      el2._ownerDocument = this;
+      return el2;
+    }
+    const el = new VElement(null, null, tagName);
+    el._ownerDocument = this;
+    return el;
+  }
+  createElementNS(namespaceURI, qualifiedName) {
+    const { namespace, prefix, localName } = validateAndExtract(
+      namespaceURI,
+      qualifiedName
+    );
+    const el = new VElement(namespace, prefix, localName);
+    el._ownerDocument = this;
+    return el;
+  }
+  createTextNode(data) {
+    const t = new VText(String(data));
+    t._ownerDocument = this;
+    return t;
+  }
+  createComment(data) {
+    const c = new VComment(String(data));
+    c._ownerDocument = this;
+    return c;
+  }
+  createDocumentFragment() {
+    const f = new VDocumentFragment();
+    f._ownerDocument = this;
+    return f;
+  }
+  createDocumentType(name, publicId = "", systemId = "") {
+    const dt = new VDocumentType(name, publicId, systemId);
+    dt._ownerDocument = this;
+    return dt;
+  }
+  // --- Import / adopt ------------------------------------------------------
+  importNode(node, deep = false) {
+    if (node.nodeType === DOCUMENT_NODE) {
+      throw notSupportedError("Cannot import a Document node.");
+    }
+    const clone = node.cloneNode(deep);
+    const stack = [clone];
+    while (stack.length) {
+      const n = stack.pop();
+      n._ownerDocument = this;
+      for (const c of n._childNodes) stack.push(c);
+    }
+    return clone;
+  }
+  adoptNode(node) {
+    if (node.nodeType === DOCUMENT_NODE) {
+      throw notSupportedError("Cannot adopt a Document node.");
+    }
+    if (node._parentNode) node._parentNode._removeChildInternal(node);
+    const stack = [node];
+    while (stack.length) {
+      const n = stack.pop();
+      n._ownerDocument = this;
+      for (const c of n._childNodes) stack.push(c);
+    }
+    return node;
+  }
+  // --- Tree accessors ------------------------------------------------------
+  get documentElement() {
+    for (const c of this._childNodes) {
+      if (c.nodeType === ELEMENT_NODE) return c;
+    }
+    return null;
+  }
+  get doctype() {
+    for (const c of this._childNodes) {
+      if (c.nodeType === DOCUMENT_TYPE_NODE) return c;
+    }
+    return null;
+  }
+  get head() {
+    return this._firstHtmlChild(this.documentElement, "head");
+  }
+  get body() {
+    const root = this.documentElement;
+    return this._firstHtmlChild(root, "body") ?? this._firstHtmlChild(root, "frameset");
+  }
+  _firstHtmlChild(parent, localName) {
+    if (!parent) return null;
+    for (const c of parent._childNodes) {
+      if (c.nodeType === ELEMENT_NODE && c.localName === localName) {
+        return c;
+      }
+    }
+    return null;
+  }
+  getElementById(id) {
+    const stack = [...this._childNodes].reverse();
+    while (stack.length) {
+      const n = stack.pop();
+      if (n.nodeType === ELEMENT_NODE && n.id === id) {
+        return n;
+      }
+      for (let i = n._childNodes.length - 1; i >= 0; i--) {
+        stack.push(n._childNodes[i]);
+      }
+    }
+    return null;
+  }
+  querySelector(selector) {
+    return querySelector(this, selector);
+  }
+  querySelectorAll(selector) {
+    return querySelectorAll(this, selector);
+  }
+  // --- Cloning -------------------------------------------------------------
+  _shallowClone() {
+    const clone = new _VDocument(this.mode);
+    return clone;
+  }
+};
+function createDocument(options = {}) {
+  const mode = options.mode ?? "html";
+  const doc = new VDocument(mode);
+  if (mode === "html") {
+    const doctype = doc.createDocumentType("html");
+    doc.appendChild(doctype);
+    const html = doc.createElement("html");
+    const head = doc.createElement("head");
+    const body = doc.createElement("body");
+    html.appendChild(head);
+    html.appendChild(body);
+    doc.appendChild(html);
+  }
+  return doc;
+}
+window.WVDOM = {
+  ATTRIBUTE_NODE,
+  CDATA_SECTION_NODE,
+  COMMENT_NODE,
+  DOCUMENT_FRAGMENT_NODE,
+  DOCUMENT_NODE,
+  DOCUMENT_TYPE_NODE,
+  DOMException,
+  DOMTokenList,
+  ELEMENT_NODE,
+  HTML_NS,
+  MATHML_NS,
+  PROCESSING_INSTRUCTION_NODE,
+  SVG_NS,
+  TEXT_NODE,
+  VCharacterData,
+  VComment,
+  VDocument,
+  VDocumentFragment,
+  VDocumentType,
+  VElement,
+  VNode,
+  VText,
+  XLINK_NS,
+  XMLNS_NS,
+  XML_NS,
+  createDocument,
+  parseFragment,
+  serialize,
+  serializeHTML,
+  serializeXML
+};
+
+/* === interactive glue === */
+/* ============================================================
+   Interactive glue — runs the REAL bundled worker-vdom above.
+   window.WVDOM holds every public export. Everything below runs
+   in-browser with zero network access.
+   ============================================================ */
+(function interactive(){
+  var L = window.WVDOM;
+  if (!L) { console.error("worker-vdom bundle failed to initialize"); return; }
+  var esc = window.escapeHtml || function(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); };
+
+  var SCOPE = ["createDocument","serialize","serializeHTML","serializeXML","parseFragment",
+    "VDocument","VNode","VElement","VText","VComment","VCharacterData","VDocumentFragment",
+    "VDocumentType","DOMTokenList","DOMException",
+    "ELEMENT_NODE","ATTRIBUTE_NODE","TEXT_NODE","CDATA_SECTION_NODE","PROCESSING_INSTRUCTION_NODE",
+    "COMMENT_NODE","DOCUMENT_NODE","DOCUMENT_TYPE_NODE","DOCUMENT_FRAGMENT_NODE",
+    "HTML_NS","SVG_NS","MATHML_NS","XML_NS","XMLNS_NS","XLINK_NS"];
+
+  function fmt(v){
+    if (typeof v === "string") return v;
+    if (v === null) return "null";
+    if (v === undefined) return "undefined";
+    if (typeof v === "object" && typeof v.nodeType === "number") {
+      try { return L.serialize(v); } catch (e) { return "[" + (v.nodeName || "node") + "]"; }
+    }
+    if (typeof v === "object") {
+      try { return JSON.stringify(v); } catch (e) { return String(v); }
+    }
+    return String(v);
+  }
+
+  /* ---------------- Playground ---------------- */
+  (function playground(){
+    var codeEl = document.getElementById("pg-code");
+    var outEl = document.getElementById("pg-output");
+    var runBtn = document.getElementById("pg-run");
+    var resetBtn = document.getElementById("pg-reset");
+    var presets = window.PLAYGROUND_PRESETS || [];
+    if (!codeEl || !outEl || !runBtn) return;
+
+    if (presets.length) codeEl.value = presets[0].code;
+
+    function joinArgs(args){
+      return Array.prototype.map.call(args, fmt).join(" ");
+    }
+
+    function run(){
+      var logs = [];
+      var sandboxConsole = {
+        log:   function(){ logs.push({ t: "log", s: joinArgs(arguments) }); },
+        info:  function(){ logs.push({ t: "log", s: joinArgs(arguments) }); },
+        warn:  function(){ logs.push({ t: "log", s: joinArgs(arguments) }); },
+        error: function(){ logs.push({ t: "err", s: joinArgs(arguments) }); },
+        debug: function(){ logs.push({ t: "log", s: joinArgs(arguments) }); }
+      };
+      var names = SCOPE.concat(["console"]);
+      var vals = SCOPE.map(function(n){ return L[n]; }).concat([sandboxConsole]);
+      var result, threw = null;
+      try {
+        var fn = new Function(names.join(","), codeEl.value);
+        result = fn.apply(null, vals);
+      } catch (e) { threw = e; }
+
+      var html = "";
+      logs.forEach(function(l){
+        html += '<span class="' + (l.t === "err" ? "err" : "log") + '">' + esc(l.s) + '</span>\n';
+      });
+      if (threw) {
+        var label = (threw && threw.name ? threw.name + ": " : "Error: ");
+        html += '<span class="err">' + esc(label + (threw && threw.message ? threw.message : String(threw))) + '</span>\n';
+      } else if (result !== undefined) {
+        html += '<span class="muted">→ returned</span>\n<span class="log">' + esc(fmt(result)) + '</span>\n';
+      }
+      if (!html) html = '<span class="muted">(no console output and no returned value)</span>';
+      outEl.innerHTML = html;
+    }
+
+    runBtn.addEventListener("click", run);
+    if (resetBtn) resetBtn.addEventListener("click", function(){
+      if (presets.length) codeEl.value = presets[0].code;
+      outEl.innerHTML = '<span class="muted">Press Run to execute the code above.</span>';
+      codeEl.focus();
+    });
+    // Ctrl/Cmd+Enter to run.
+    codeEl.addEventListener("keydown", function(e){
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); run(); }
+    });
+    // Preset buttons.
+    document.querySelectorAll(".pg-preset").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var i = parseInt(btn.getAttribute("data-preset"), 10);
+        if (presets[i]) { codeEl.value = presets[i].code; codeEl.focus(); run(); }
+      });
+    });
+  })();
+
+  /* ---------------- Benchmarks ---------------- */
+  (function benchmarks(){
+    var nInput = document.getElementById("bm-n");
+    var runBtn = document.getElementById("bm-run");
+    var status = document.getElementById("bm-status");
+    var tbody = document.getElementById("bm-tbody");
+    if (!nInput || !runBtn || !status || !tbody) return;
+
+    function nf(n){ return Math.round(n).toLocaleString("en-US"); }
+    function msf(n){ return n.toFixed(2); }
+
+    function buildTree(n){
+      var doc = L.createDocument();
+      var root = doc.createElement("section");
+      for (var i = 0; i < n; i++) {
+        var mod = i % 6;
+        var tag = mod === 0 ? "section" : mod === 1 ? "div" : mod < 4 ? "li" : "span";
+        var el = doc.createElement(tag);
+        if (i % 3 === 0) el.setAttribute("class", "item");
+        if (i % 5 === 0) el.classList.add("odd");
+        el.setAttribute("data-i", String(i));
+        el.appendChild(doc.createTextNode("n" + i));
+        root.appendChild(el);
+      }
+      return { doc: doc, root: root };
+    }
+
+    var benches = [
+      { op: "createElement × N", run: function(N){
+          var doc = L.createDocument();
+          for (var i = 0; i < N; i++) doc.createElement("div");
+          return N;
+        } },
+      { op: "append × N via DocumentFragment", run: function(N){
+          var doc = L.createDocument();
+          var frag = doc.createDocumentFragment();
+          for (var i = 0; i < N; i++) frag.appendChild(doc.createElement("span"));
+          var container = doc.createElement("div");
+          container.appendChild(frag);
+          return N;
+        } },
+      { op: "setAttribute × N", run: function(N){
+          var doc = L.createDocument();
+          var el = doc.createElement("div");
+          for (var i = 0; i < N; i++) el.setAttribute("data-k" + (i % 24), "v" + i);
+          return N;
+        } },
+      { op: "cloneNode(true) deep subtree", prep: function(N){ return buildTree(Math.min(N, 40000)); },
+        run: function(N, ctx){
+          var clones = Math.max(5, Math.round(N / 2000));
+          for (var i = 0; i < clones; i++) ctx.root.cloneNode(true);
+          return clones;
+        } },
+      { op: "serialize large tree", prep: function(N){ return buildTree(Math.min(N, 40000)); },
+        run: function(N, ctx){
+          var reps = Math.max(5, Math.round(N / 3000));
+          var s = "";
+          for (var i = 0; i < reps; i++) s = L.serialize(ctx.root);
+          return reps;
+        } },
+      { op: "querySelectorAll('span')", qsa: "span" },
+      { op: "querySelectorAll('.item')", qsa: ".item" },
+      { op: "querySelectorAll('section li')", qsa: "section li" },
+      { op: "querySelectorAll('li:nth-child(2n)')", qsa: "li:nth-child(2n)" }
+    ];
+
+    function setStatus(html){ status.innerHTML = html; }
+
+    function run(){
+      var N = parseInt(nInput.value, 10);
+      if (!isFinite(N)) N = 50000;
+      N = Math.max(1000, Math.min(100000, N));
+      nInput.value = N;
+
+      runBtn.disabled = true;
+      tbody.innerHTML = "";
+      var results = [];
+      var qsaTree = null;
+      var idx = 0;
+
+      function normalize(){
+        var max = 0;
+        results.forEach(function(r){ if (r.ops > max) max = r.ops; });
+        results.forEach(function(r){
+          if (r._fill) r._fill.style.width = (max > 0 ? (r.ops / max * 100) : 0).toFixed(1) + "%";
+        });
+      }
+
+      function appendRow(r){
+        var tr = document.createElement("tr");
+        tr.innerHTML =
+          '<td class="op">' + esc(r.op) + '</td>' +
+          '<td class="num">' + nf(r.iters) + '</td>' +
+          '<td class="num">' + msf(r.total) + '</td>' +
+          '<td class="num">' + nf(r.ops) + '</td>' +
+          '<td class="bm-bar-cell"><div class="bm-bar-track"><div class="bm-bar-fill"></div></div></td>';
+        tbody.appendChild(tr);
+        r._fill = tr.querySelector(".bm-bar-fill");
+      }
+
+      function step(){
+        if (idx >= benches.length) {
+          normalize();
+          runBtn.disabled = false;
+          setStatus('<span style="color:var(--text-soft)">Done — N = ' + N.toLocaleString("en-US") +
+            ', ' + benches.length + ' operations. Re-run for a fresh sample.</span>');
+          return;
+        }
+        var b = benches[idx];
+        setStatus('<span class="spinner" aria-hidden="true"></span><span>Running ' + (idx + 1) + '/' + benches.length +
+          ': ' + esc(b.op) + ' …</span>');
+        // Yield so the "running" state paints before the (blocking) work.
+        setTimeout(function(){
+          var ctx = null;
+          if (b.qsa) { if (!qsaTree) qsaTree = buildTree(Math.min(N, 40000)); }
+          else if (b.prep) { ctx = b.prep(N); }
+
+          var iters, t0, t1;
+          if (b.qsa) {
+            var reps = Math.max(5, Math.round(N / 2000));
+            t0 = performance.now();
+            for (var i = 0; i < reps; i++) qsaTree.root.querySelectorAll(b.qsa);
+            t1 = performance.now();
+            iters = reps;
+          } else {
+            t0 = performance.now();
+            iters = b.run(N, ctx);
+            t1 = performance.now();
+          }
+          var total = t1 - t0;
+          var ops = total > 0 ? iters / (total / 1000) : 0;
+          var r = { op: b.op, iters: iters, total: total, ops: ops };
+          results.push(r);
+          appendRow(r);
+          idx++;
+          setTimeout(step, 0); // yield between benchmarks
+        }, 24);
+      }
+      step();
+    }
+
+    runBtn.addEventListener("click", run);
+  })();
+})();
+</script>
+</body>
+</html>

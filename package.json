@@ -1,0 +1,57 @@
+{
+  "name": "worker-vdom",
+  "version": "0.1.0",
+  "description": "A lightweight, dependency-free virtual DOM that runs inside a browser Web Worker. Familiar DOM APIs for building, mutating, querying, cloning and serializing an isolated tree.",
+  "type": "module",
+  "license": "MIT",
+  "author": "steveiwonder",
+  "keywords": [
+    "dom",
+    "virtual-dom",
+    "web-worker",
+    "worker",
+    "html",
+    "xml",
+    "svg",
+    "serialize",
+    "selectors",
+    "no-dependencies"
+  ],
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:browser": "playwright test",
+    "lint": "eslint .",
+    "bench": "node --expose-gc benchmarks/run.mjs",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.45.0",
+    "@types/node": "^20.14.0",
+    "eslint": "^9.7.0",
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^2.0.0"
+  }
+}

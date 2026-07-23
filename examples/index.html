@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>worker-vdom — Web Worker example</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 48rem;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        line-height: 1.5;
+      }
+      h1 {
+        font-size: 1.4rem;
+      }
+      pre {
+        background: #f4f4f5;
+        border: 1px solid #e4e4e7;
+        border-radius: 6px;
+        padding: 1rem;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .rendered {
+        border: 1px dashed #a1a1aa;
+        border-radius: 6px;
+        padding: 1rem;
+      }
+      code {
+        background: #f4f4f5;
+        padding: 0.1em 0.3em;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>worker-vdom in a Web Worker</h1>
+    <p>
+      This page starts a module Web Worker (<code>worker.js</code>). The worker
+      builds a DOM tree entirely inside the worker thread using worker-vdom and
+      posts the serialized HTML back. The main thread never builds the tree.
+    </p>
+
+    <h2>Serialized <code>outerHTML</code> from the worker</h2>
+    <pre id="output">Starting worker…</pre>
+
+    <h2>Rendered result (main thread inserts the string)</h2>
+    <div class="rendered" id="rendered"></div>
+
+    <script type="module">
+      const output = document.getElementById("output");
+      const rendered = document.getElementById("rendered");
+
+      // A module worker so it can use `import` inside worker.js.
+      const worker = new Worker("./worker.js", { type: "module" });
+
+      worker.onmessage = (event) => {
+        const { outerHTML } = event.data;
+        output.textContent = outerHTML;
+        // The worker produced a trusted string from data we sent it.
+        rendered.innerHTML = outerHTML;
+      };
+
+      worker.onerror = (err) => {
+        output.textContent = "Worker error: " + err.message;
+      };
+
+      worker.postMessage({
+        id: 42,
+        title: "Built inside a Web Worker",
+        items: ["dependency-free", "isolated tree", "serialized to HTML"],
+      });
+    </script>
+  </body>
+</html>
