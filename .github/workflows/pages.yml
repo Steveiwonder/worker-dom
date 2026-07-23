@@ -30,7 +30,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Configure Pages
+        # enablement: true turns on GitHub Pages (with the "GitHub Actions"
+        # source) for the repository automatically on first run, so the deploy
+        # does not require someone to enable Pages manually in Settings first.
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

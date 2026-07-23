@@ -36,9 +36,20 @@ jobs:
       - name: Test
         run: npm test
 
-      - name: Check whether this version is already published
+      - name: Decide whether to publish
         id: version_check
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          # Publishing is opt-in: it only happens when an NPM_TOKEN secret is
+          # configured AND package.json's version isn't already on npm. When the
+          # secret is absent the job succeeds and simply skips publishing, so a
+          # fresh repo without the secret does not report a failed workflow.
+          if [ -z "${NPM_TOKEN}" ]; then
+            echo "No NPM_TOKEN secret configured; skipping publish."
+            echo "should_publish=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
           LOCAL_VERSION="$(node -p "require('./package.json').version")"
           echo "Local package.json version: ${LOCAL_VERSION}"
           PUBLISHED_VERSION="$(npm view "worker-vdom@${LOCAL_VERSION}" version 2>/dev/null || true)"
