@@ -111,6 +111,29 @@ describe("selectors: querySelector/All", () => {
     expect(collected).toEqual(["a", "b", "c"]);
   });
 
+  it("handles :nth-child over a large flat sibling list efficiently", () => {
+    // Regression: positional pseudo-classes must not be O(n^2) on wide trees.
+    const doc = createDocument();
+    const root = doc.createElement("section");
+    const frag = doc.createDocumentFragment();
+    const N = 20_000;
+    for (let i = 0; i < N; i++) {
+      const el = doc.createElement(i % 2 === 0 ? "li" : "span");
+      frag.appendChild(el);
+    }
+    root.appendChild(frag);
+
+    const start = Date.now();
+    // li elements sit at even 0-based positions => odd 1-based indices, so
+    // li:nth-child(2n) (even 1-based) matches none; li:nth-child(2n+1) matches all li.
+    expect(root.querySelectorAll("li:nth-child(2n)").length).toBe(0);
+    expect(root.querySelectorAll("li:nth-child(odd)").length).toBe(N / 2);
+    expect(root.querySelectorAll("li:first-child").length).toBe(1);
+    expect(root.querySelectorAll("span:last-child").length).toBe(1);
+    // Should finish in well under a second; generous bound to avoid flakiness.
+    expect(Date.now() - start).toBeLessThan(3000);
+  });
+
   it("invalid selector throws SyntaxError", () => {
     const doc = setup();
     try {

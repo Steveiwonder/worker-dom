@@ -1879,7 +1879,7 @@ function createDataset(owner) {
 function escapeText(value, xml) {
   let out = value.replace(/&/g, "&amp;").replace(/</g, "&lt;");
   out = out.replace(/>/g, "&gt;");
-  if (!xml) out = out.replace(/ /g, "&nbsp;");
+  if (!xml) out = out.replace(/\u00A0/g, "&nbsp;");
   return out;
 }
 function escapeAttr(value, xml) {
@@ -1887,7 +1887,7 @@ function escapeAttr(value, xml) {
   if (xml) {
     out = out.replace(/</g, "&lt;");
   } else {
-    out = out.replace(/ /g, "&nbsp;");
+    out = out.replace(/\u00A0/g, "&nbsp;");
   }
   return out;
 }
@@ -2388,7 +2388,7 @@ var SelectorParser = class {
   parseAttribute() {
     this.i++;
     this.ws();
-    let name = this.readAttrName();
+    const name = this.readAttrName();
     this.ws();
     const c = this.peek();
     if (c === "]") {
@@ -2566,47 +2566,78 @@ function nthMatches(index1, { a, b }) {
   const n = (index1 - b) / a;
   return Number.isInteger(n) && n >= 0;
 }
-function matchPseudo(el, cond) {
+function createContext() {
+  return { siblings: /* @__PURE__ */ new WeakMap() };
+}
+function siblingInfo(parent, ctx) {
+  let info = ctx.siblings.get(parent);
+  if (!info) {
+    const elems = elementChildren(parent);
+    const index = /* @__PURE__ */ new Map();
+    for (let i = 0; i < elems.length; i++) index.set(elems[i], i);
+    info = { elems, index };
+    ctx.siblings.set(parent, info);
+  }
+  return info;
+}
+function matchPseudo(el, cond, ctx) {
   switch (cond.name) {
-    case "first-child":
-      return el.previousElementSibling === null;
-    case "last-child":
-      return el.nextElementSibling === null;
-    case "only-child":
-      return el.previousElementSibling === null && el.nextElementSibling === null;
+    case "first-child": {
+      const p = el.parentNode;
+      return p ? siblingInfo(p, ctx).index.get(el) === 0 : false;
+    }
+    case "last-child": {
+      const p = el.parentNode;
+      if (!p) return false;
+      const info = siblingInfo(p, ctx);
+      return info.index.get(el) === info.elems.length - 1;
+    }
+    case "only-child": {
+      const p = el.parentNode;
+      return p ? siblingInfo(p, ctx).elems.length === 1 : false;
+    }
     case "first-of-type":
-      return firstOfType(el, true);
+      return ofType(el, true, ctx);
     case "last-of-type":
-      return firstOfType(el, false);
+      return ofType(el, false, ctx);
     case "empty":
       return isEmpty(el);
     case "root":
       return el.parentNode !== null && el.parentNode.nodeType === DOCUMENT_NODE;
     case "not":
-      return !(cond.selectors ?? []).some((c) => matchComplexAgainst(el, c));
+      return !(cond.selectors ?? []).some(
+        (c) => matchComplexAgainst(el, c, ctx)
+      );
     case "is":
     case "where":
-      return (cond.selectors ?? []).some((c) => matchComplexAgainst(el, c));
+      return (cond.selectors ?? []).some(
+        (c) => matchComplexAgainst(el, c, ctx)
+      );
     case "nth-child":
     case "nth-last-child": {
-      if (!cond.nth || !el.parentNode) return false;
-      const sibs = elementChildren(el.parentNode);
-      let idx = sibs.indexOf(el);
-      if (idx === -1) return false;
-      const index1 = cond.name === "nth-child" ? idx + 1 : sibs.length - idx;
+      const parent = el.parentNode;
+      if (!cond.nth || !parent) return false;
+      const info = siblingInfo(parent, ctx);
+      const idx = info.index.get(el);
+      if (idx === void 0) return false;
+      const index1 = cond.name === "nth-child" ? idx + 1 : info.elems.length - idx;
       return nthMatches(index1, cond.nth);
     }
     default:
       return false;
   }
 }
-function firstOfType(el, first) {
+function ofType(el, first, ctx) {
   const p = el.parentNode;
   if (!p) return true;
-  const sibs = elementChildren(p).filter(
-    (s) => s.localName === el.localName && s.namespaceURI === el.namespaceURI
-  );
-  return first ? sibs[0] === el : sibs[sibs.length - 1] === el;
+  const sibs = siblingInfo(p, ctx).elems;
+  for (let i = first ? 0 : sibs.length - 1; first ? i < sibs.length : i >= 0; i += first ? 1 : -1) {
+    const s = sibs[i];
+    if (s.localName === el.localName && s.namespaceURI === el.namespaceURI) {
+      return s === el;
+    }
+  }
+  return false;
 }
 function isEmpty(el) {
   for (const c of el._childNodes) {
@@ -2617,7 +2648,7 @@ function isEmpty(el) {
   }
   return true;
 }
-function matchCompound(el, compound) {
+function matchCompound(el, compound, ctx) {
   for (const cond of compound.conditions) {
     switch (cond.kind) {
       case "universal":
@@ -2635,38 +2666,45 @@ function matchCompound(el, compound) {
         if (!matchAttr(el, cond)) return false;
         break;
       case "pseudo":
-        if (!matchPseudo(el, cond)) return false;
+        if (!matchPseudo(el, cond, ctx)) return false;
         break;
     }
   }
   return true;
 }
-function matchComplexParts(el, parts, index) {
-  if (!matchCompound(el, parts[index].compound)) return false;
+function matchComplexParts(el, parts, index, ctx) {
+  if (!matchCompound(el, parts[index].compound, ctx)) return false;
   if (index === 0) return true;
   const combinator = parts[index].combinator;
   switch (combinator) {
     case " ": {
       let a = el.parentElement;
       while (a) {
-        if (matchComplexParts(a, parts, index - 1)) return true;
+        if (matchComplexParts(a, parts, index - 1, ctx)) return true;
         a = a.parentElement;
       }
       return false;
     }
     case ">": {
       const p = el.parentElement;
-      return p ? matchComplexParts(p, parts, index - 1) : false;
+      return p ? matchComplexParts(p, parts, index - 1, ctx) : false;
     }
     case "+": {
-      const prev = el.previousElementSibling;
-      return prev ? matchComplexParts(prev, parts, index - 1) : false;
+      const parent = el.parentNode;
+      if (!parent) return false;
+      const info = siblingInfo(parent, ctx);
+      const idx = info.index.get(el);
+      if (idx === void 0 || idx === 0) return false;
+      return matchComplexParts(info.elems[idx - 1], parts, index - 1, ctx);
     }
     case "~": {
-      let s = el.previousElementSibling;
-      while (s) {
-        if (matchComplexParts(s, parts, index - 1)) return true;
-        s = s.previousElementSibling;
+      const parent = el.parentNode;
+      if (!parent) return false;
+      const info = siblingInfo(parent, ctx);
+      const idx = info.index.get(el);
+      if (idx === void 0) return false;
+      for (let j = idx - 1; j >= 0; j--) {
+        if (matchComplexParts(info.elems[j], parts, index - 1, ctx)) return true;
       }
       return false;
     }
@@ -2674,11 +2712,11 @@ function matchComplexParts(el, parts, index) {
       return false;
   }
 }
-function matchComplexAgainst(el, complex) {
-  return matchComplexParts(el, complex, complex.length - 1);
+function matchComplexAgainst(el, complex, ctx) {
+  return matchComplexParts(el, complex, complex.length - 1, ctx);
 }
-function matchesList(el, list) {
-  return list.some((complex) => matchComplexAgainst(el, complex));
+function matchesList(el, list, ctx) {
+  return list.some((complex) => matchComplexAgainst(el, complex, ctx));
 }
 function* descendantElements(root) {
   const stack = [];
@@ -2694,29 +2732,32 @@ function* descendantElements(root) {
   }
 }
 function matches(el, selector) {
-  return matchesList(el, parseSelector(selector));
+  return matchesList(el, parseSelector(selector), createContext());
 }
 function closest(el, selector) {
   const list = parseSelector(selector);
+  const ctx = createContext();
   let current = el;
   while (current) {
-    if (matchesList(current, list)) return current;
+    if (matchesList(current, list, ctx)) return current;
     current = current.parentElement;
   }
   return null;
 }
 function querySelector(root, selector) {
   const list = parseSelector(selector);
+  const ctx = createContext();
   for (const el of descendantElements(root)) {
-    if (matchesList(el, list)) return el;
+    if (matchesList(el, list, ctx)) return el;
   }
   return null;
 }
 function querySelectorAll(root, selector) {
   const list = parseSelector(selector);
+  const ctx = createContext();
   const out = [];
   for (const el of descendantElements(root)) {
-    if (matchesList(el, list)) out.push(el);
+    if (matchesList(el, list, ctx)) out.push(el);
   }
   return createNodeList(out);
 }
@@ -3172,6 +3213,14 @@ var VDocument = class _VDocument extends VNode {
     return node;
   }
   // --- Tree accessors ------------------------------------------------------
+  /**
+   * The root element (`<html>` in a default HTML document).
+   *
+   * Typed non-null to match the native DOM lib and keep everyday HTML-mode code
+   * ergonomic (`document.documentElement.outerHTML`). In `xml` mode an empty
+   * document has no root element and this returns `null` at runtime — guard
+   * accordingly when using XML documents.
+   */
   get documentElement() {
     for (const c of this._childNodes) {
       if (c.nodeType === ELEMENT_NODE) return c;
@@ -3184,9 +3233,11 @@ var VDocument = class _VDocument extends VNode {
     }
     return null;
   }
+  /** The `<head>` element. Non-null in HTML mode; `null` at runtime in XML mode. */
   get head() {
     return this._firstHtmlChild(this.documentElement, "head");
   }
+  /** The `<body>` element. Non-null in HTML mode; `null` at runtime in XML mode. */
   get body() {
     const root = this.documentElement;
     return this._firstHtmlChild(root, "body") ?? this._firstHtmlChild(root, "frameset");
