@@ -7,6 +7,10 @@ import {
 } from "./node.js";
 import { VCSSStyleDeclaration } from "./style.js";
 import {
+  VCanvasRenderingContext2D,
+  VHTMLCanvasElement,
+} from "./canvas.js";
+import {
   VSVGMatrix,
   VSVGTransform,
 } from "./svg.js";
@@ -85,6 +89,22 @@ function install(
   }
 }
 
+function elementConstructor(
+  namespaceURI: string | null,
+  localNames?: string[],
+): typeof VElement {
+  const acceptedNames = localNames ? new Set(localNames) : null;
+  return class extends VElement {
+    static override [Symbol.hasInstance](value: unknown): boolean {
+      return (
+        value instanceof VElement &&
+        (namespaceURI === null || value.namespaceURI === namespaceURI) &&
+        (!acceptedNames || acceptedNames.has(value.localName))
+      );
+    }
+  };
+}
+
 /**
  * Installs a worker-safe DOM compatibility surface for libraries that perform
  * `instanceof` checks or read browser globals while rendering.
@@ -109,27 +129,43 @@ export function installDOMGlobals(
   install(target, "Node", VNode, overwrite);
   install(target, "Element", VElement, overwrite);
   install(target, "HTMLElement", VElement, overwrite);
-  install(target, "SVGElement", VElement, overwrite);
-  install(target, "SVGSVGElement", VElement, overwrite);
-  install(target, "SVGGraphicsElement", VElement, overwrite);
-  for (const constructorName of [
-    "SVGGElement",
-    "SVGDefsElement",
-    "SVGPathElement",
-    "SVGRectElement",
-    "SVGCircleElement",
-    "SVGEllipseElement",
-    "SVGLineElement",
-    "SVGPolylineElement",
-    "SVGPolygonElement",
-    "SVGTextElement",
-    "SVGTSpanElement",
-    "SVGImageElement",
-    "SVGUseElement",
-    "SVGClipPathElement",
-    "SVGForeignObjectElement",
-  ]) {
-    install(target, constructorName, VElement, overwrite);
+  install(target, "HTMLCanvasElement", VHTMLCanvasElement, overwrite);
+  install(
+    target,
+    "CanvasRenderingContext2D",
+    VCanvasRenderingContext2D,
+    overwrite,
+  );
+  const svgConstructors: Record<string, string[] | undefined> = {
+    SVGElement: undefined,
+    SVGGraphicsElement: undefined,
+    SVGSVGElement: ["svg"],
+    SVGGElement: ["g"],
+    SVGDefsElement: ["defs"],
+    SVGPathElement: ["path"],
+    SVGRectElement: ["rect"],
+    SVGCircleElement: ["circle"],
+    SVGEllipseElement: ["ellipse"],
+    SVGLineElement: ["line"],
+    SVGPolylineElement: ["polyline"],
+    SVGPolygonElement: ["polygon"],
+    SVGTextContentElement: ["text", "tspan", "textPath"],
+    SVGTextElement: ["text"],
+    SVGTSpanElement: ["tspan"],
+    SVGImageElement: ["image"],
+    SVGUseElement: ["use"],
+    SVGClipPathElement: ["clipPath"],
+    SVGForeignObjectElement: ["foreignObject"],
+  };
+  for (const [constructorName, localNames] of Object.entries(
+    svgConstructors,
+  )) {
+    install(
+      target,
+      constructorName,
+      elementConstructor("http://www.w3.org/2000/svg", localNames),
+      overwrite,
+    );
   }
   install(target, "SVGMatrix", VSVGMatrix, overwrite);
   install(target, "DOMMatrix", VSVGMatrix, overwrite);

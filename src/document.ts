@@ -6,6 +6,7 @@ import {
 } from "./constants.js";
 import { VNode } from "./node.js";
 import { VElement } from "./element.js";
+import { VHTMLCanvasElement } from "./canvas.js";
 import { VText } from "./text.js";
 import { VComment } from "./comment.js";
 import { VDocumentFragment } from "./document-fragment.js";
@@ -58,7 +59,11 @@ export class VDocument extends VNode {
   createElement(tagName: string): VElement {
     validateName(tagName);
     if (this._html) {
-      const el = new VElement(HTML_NS, null, tagName.toLowerCase());
+      const localName = tagName.toLowerCase();
+      const el =
+        localName === "canvas"
+          ? new VHTMLCanvasElement()
+          : new VElement(HTML_NS, null, localName);
       el._ownerDocument = this;
       return el;
     }

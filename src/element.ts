@@ -262,12 +262,24 @@ export class VElement extends VNode {
     return this._animatedLength("y");
   }
 
-  get width(): VSVGAnimatedLength {
+  get width(): any {
     return this._animatedLength("width");
   }
+  set width(value: any) {
+    this.setAttribute(
+      "width",
+      value instanceof VSVGAnimatedLength ? value.baseVal.value : value,
+    );
+  }
 
-  get height(): VSVGAnimatedLength {
+  get height(): any {
     return this._animatedLength("height");
+  }
+  set height(value: any) {
+    this.setAttribute(
+      "height",
+      value instanceof VSVGAnimatedLength ? value.baseVal.value : value,
+    );
   }
 
   get cx(): VSVGAnimatedLength {

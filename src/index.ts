@@ -23,6 +23,11 @@ export { VDocumentType } from "./document-type.js";
 export { DOMTokenList } from "./class-list.js";
 export type { DOMStringMap } from "./dataset.js";
 export { VCSSStyleDeclaration } from "./style.js";
+export {
+  VHTMLCanvasElement,
+  VCanvasRenderingContext2D,
+  type VTextMetrics,
+} from "./canvas.js";
 export { VDOMParser, VXMLSerializer } from "./dom-parser.js";
 
 export {

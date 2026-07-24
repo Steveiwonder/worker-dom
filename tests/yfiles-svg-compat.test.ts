@@ -13,6 +13,21 @@ import {
 } from "../src/index.js";
 
 describe("yFiles SVG compatibility surface", () => {
+  it("uses tag-specific SVG constructors for renderer branches", () => {
+    const target: Record<string, unknown> = {};
+    const document = createDocument();
+    installDOMGlobals(document, { target });
+    const text = document.createElementNS(SVG_NS, "text");
+    const group = document.createElementNS(SVG_NS, "g");
+    const SVGText = target.SVGTextElement as typeof VElement;
+    const SVGGroup = target.SVGGElement as typeof VElement;
+
+    expect(text).toBeInstanceOf(SVGText);
+    expect(text).not.toBeInstanceOf(SVGGroup);
+    expect(group).toBeInstanceOf(SVGGroup);
+    expect(group).not.toBeInstanceOf(SVGText);
+  });
+
   it("reflects SVG animated string and length properties", () => {
     const document = createDocument({ mode: "xml" });
     const image = document.createElementNS(SVG_NS, "image");
