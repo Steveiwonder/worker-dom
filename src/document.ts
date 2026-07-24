@@ -16,6 +16,7 @@ import {
   querySelector as qs,
   querySelectorAll as qsa,
 } from "./selectors/index.js";
+import { createNodeList } from "./collections.js";
 
 export type DocumentMode = "html" | "xml";
 
@@ -36,6 +37,10 @@ export class VDocument extends VNode {
   readonly mode: DocumentMode;
   /** @internal True in HTML mode: names are case-insensitive. */
   readonly _html: boolean;
+  defaultView: Record<string, unknown> | null = null;
+  readonly implementation = {
+    hasFeature: (_feature?: string, _version?: string): boolean => true,
+  };
 
   constructor(mode: DocumentMode = "html") {
     super();
@@ -206,6 +211,36 @@ export class VDocument extends VNode {
 
   querySelectorAll(selector: string) {
     return qsa(this, selector);
+  }
+
+  getElementsByTagName(qualifiedName: string) {
+    return qsa(this, qualifiedName === "*" ? "*" : qualifiedName);
+  }
+
+  getElementsByTagNameNS(namespace: string | null, localName: string) {
+    const root = this.documentElement;
+    if (!root) return createNodeList<VElement>([]);
+    const matches: VElement[] = [];
+    if (
+      (namespace === "*" || root.namespaceURI === namespace) &&
+      (localName === "*" || root.localName === localName)
+    ) {
+      matches.push(root);
+    }
+    for (const element of root.getElementsByTagNameNS(namespace, localName)) {
+      matches.push(element);
+    }
+    return createNodeList(matches);
+  }
+
+  getElementsByClassName(classNames: string) {
+    const selector = classNames
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((name) => `.${name}`)
+      .join("");
+    return selector ? qsa(this, selector) : createNodeList<VElement>([]);
   }
 
   // --- Cloning -------------------------------------------------------------

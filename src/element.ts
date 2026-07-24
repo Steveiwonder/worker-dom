@@ -1,4 +1,4 @@
-import { ELEMENT_NODE, HTML_NS } from "./constants.js";
+import { ELEMENT_NODE, HTML_NS, SVG_NS } from "./constants.js";
 import { VNode } from "./node.js";
 import {
   StaticNamedNodeMap,
@@ -22,6 +22,16 @@ import {
   querySelectorAll as qsa,
   closest as closestSelector,
 } from "./selectors/index.js";
+import { VCSSStyleDeclaration } from "./style.js";
+import {
+  VSVGAnimatedLength,
+  VSVGAnimatedRect,
+  VSVGAnimatedString,
+  VSVGAnimatedTransformList,
+  VSVGMatrix,
+  VSVGTransform,
+  type SVGRectLike,
+} from "./svg.js";
 
 export type InsertPosition =
   | "beforebegin"
@@ -40,6 +50,8 @@ export class VElement extends VNode {
 
   private _classList?: DOMTokenList;
   private _dataset?: DOMStringMap;
+  private _style?: VCSSStyleDeclaration;
+  private readonly _animatedProperties = new Map<string, unknown>();
 
   constructor(
     namespaceURI: string | null,
@@ -207,11 +219,16 @@ export class VElement extends VNode {
     this.setAttribute("id", value);
   }
 
-  get className(): string {
-    return this.getAttribute("class") ?? "";
+  get className(): string | VSVGAnimatedString {
+    return this.namespaceURI === SVG_NS
+      ? this._animatedString("class")
+      : (this.getAttribute("class") ?? "");
   }
-  set className(value: string) {
-    this.setAttribute("class", value);
+  set className(value: string | VSVGAnimatedString) {
+    this.setAttribute(
+      "class",
+      typeof value === "string" ? value : value.baseVal,
+    );
   }
 
   get classList(): DOMTokenList {
@@ -222,6 +239,195 @@ export class VElement extends VNode {
   get dataset(): DOMStringMap {
     if (!this._dataset) this._dataset = createDataset(this);
     return this._dataset;
+  }
+
+  get style(): VCSSStyleDeclaration {
+    if (!this._style) {
+      this._style = new VCSSStyleDeclaration(this).asProxy();
+    }
+    return this._style;
+  }
+
+  // --- SVG reflected properties -------------------------------------------
+
+  get href(): VSVGAnimatedString {
+    return this._animatedString("href", "xlink:href");
+  }
+
+  get x(): VSVGAnimatedLength {
+    return this._animatedLength("x");
+  }
+
+  get y(): VSVGAnimatedLength {
+    return this._animatedLength("y");
+  }
+
+  get width(): VSVGAnimatedLength {
+    return this._animatedLength("width");
+  }
+
+  get height(): VSVGAnimatedLength {
+    return this._animatedLength("height");
+  }
+
+  get cx(): VSVGAnimatedLength {
+    return this._animatedLength("cx");
+  }
+
+  get cy(): VSVGAnimatedLength {
+    return this._animatedLength("cy");
+  }
+
+  get r(): VSVGAnimatedLength {
+    return this._animatedLength("r");
+  }
+
+  get rx(): VSVGAnimatedLength {
+    return this._animatedLength("rx");
+  }
+
+  get ry(): VSVGAnimatedLength {
+    return this._animatedLength("ry");
+  }
+
+  get x1(): VSVGAnimatedLength {
+    return this._animatedLength("x1");
+  }
+
+  get y1(): VSVGAnimatedLength {
+    return this._animatedLength("y1");
+  }
+
+  get x2(): VSVGAnimatedLength {
+    return this._animatedLength("x2");
+  }
+
+  get y2(): VSVGAnimatedLength {
+    return this._animatedLength("y2");
+  }
+
+  get viewBox(): VSVGAnimatedRect {
+    return this._cachedAnimated(
+      "viewBox",
+      () => new VSVGAnimatedRect(this, "viewBox"),
+    );
+  }
+
+  get transform(): VSVGAnimatedTransformList {
+    return this._cachedAnimated(
+      "transform",
+      () => new VSVGAnimatedTransformList(this),
+    );
+  }
+
+  createSVGMatrix(): VSVGMatrix {
+    return new VSVGMatrix();
+  }
+
+  createSVGTransform(): VSVGTransform {
+    return new VSVGTransform();
+  }
+
+  createSVGTransformFromMatrix(matrix: VSVGMatrix): VSVGTransform {
+    const transform = new VSVGTransform();
+    transform.setMatrix(matrix);
+    return transform;
+  }
+
+  createSVGPoint(): { x: number; y: number; matrixTransform: (matrix: VSVGMatrix) => { x: number; y: number } } {
+    const point = {
+      x: 0,
+      y: 0,
+      matrixTransform(matrix: VSVGMatrix) {
+        return {
+          x: matrix.a * point.x + matrix.c * point.y + matrix.e,
+          y: matrix.b * point.x + matrix.d * point.y + matrix.f,
+        };
+      },
+    };
+    return point;
+  }
+
+  getBBox(): SVGRectLike {
+    return this._geometryRect();
+  }
+
+  getBoundingClientRect(): SVGRectLike & {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+    toJSON(): SVGRectLike;
+  } {
+    const rect = this._geometryRect();
+    return {
+      ...rect,
+      top: rect.y,
+      right: rect.x + rect.width,
+      bottom: rect.y + rect.height,
+      left: rect.x,
+      toJSON: () => ({ ...rect }),
+    };
+  }
+
+  get clientWidth(): number {
+    return this._geometryRect().width;
+  }
+
+  get clientHeight(): number {
+    return this._geometryRect().height;
+  }
+
+  get offsetWidth(): number {
+    return this.clientWidth;
+  }
+
+  get offsetHeight(): number {
+    return this.clientHeight;
+  }
+
+  getCTM(): VSVGMatrix {
+    return new VSVGMatrix();
+  }
+
+  getScreenCTM(): VSVGMatrix {
+    return this.getCTM();
+  }
+
+  private _geometryRect(): SVGRectLike {
+    if (this.localName === "svg" && this.hasAttribute("viewBox")) {
+      return this.viewBox.baseVal;
+    }
+    return {
+      x: Number.parseFloat(this.getAttribute("x") ?? "0") || 0,
+      y: Number.parseFloat(this.getAttribute("y") ?? "0") || 0,
+      width: Number.parseFloat(this.getAttribute("width") ?? "0") || 0,
+      height: Number.parseFloat(this.getAttribute("height") ?? "0") || 0,
+    };
+  }
+
+  private _animatedLength(attribute: string): VSVGAnimatedLength {
+    return this._cachedAnimated(
+      `length:${attribute}`,
+      () => new VSVGAnimatedLength(this, attribute),
+    );
+  }
+
+  private _animatedString(
+    attribute: string,
+    fallbackAttribute?: string,
+  ): VSVGAnimatedString {
+    return this._cachedAnimated(
+      `string:${attribute}`,
+      () => new VSVGAnimatedString(this, attribute, fallbackAttribute),
+    );
+  }
+
+  private _cachedAnimated<T>(key: string, factory: () => T): T {
+    if (!this._animatedProperties.has(key)) {
+      this._animatedProperties.set(key, factory());
+    }
+    return this._animatedProperties.get(key) as T;
   }
 
   // --- Element traversal ---------------------------------------------------
@@ -360,6 +566,41 @@ export class VElement extends VNode {
 
   querySelectorAll(selector: string) {
     return qsa(this, selector);
+  }
+
+  getElementsByTagName(qualifiedName: string) {
+    return qsa(this, qualifiedName === "*" ? "*" : qualifiedName);
+  }
+
+  getElementsByTagNameNS(namespace: string | null, localName: string) {
+    const matches: VElement[] = [];
+    const stack = [...this._childNodes].reverse();
+    while (stack.length) {
+      const node = stack.pop() as VNode;
+      if (node.nodeType === ELEMENT_NODE) {
+        const element = node as VElement;
+        if (
+          (namespace === "*" || element.namespaceURI === namespace) &&
+          (localName === "*" || element.localName === localName)
+        ) {
+          matches.push(element);
+        }
+      }
+      for (let index = node._childNodes.length - 1; index >= 0; index--) {
+        stack.push(node._childNodes[index]);
+      }
+    }
+    return createNodeList(matches);
+  }
+
+  getElementsByClassName(classNames: string) {
+    const selector = classNames
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((name) => `.${name}`)
+      .join("");
+    return selector ? qsa(this, selector) : createNodeList([]);
   }
 
   // --- Cloning -------------------------------------------------------------

@@ -12,6 +12,20 @@ import { createNodeList, type NodeListLike } from "./collections.js";
 import type { VDocument } from "./document.js";
 import type { VElement } from "./element.js";
 
+export interface VEventLike {
+  readonly type: string;
+  target?: unknown;
+  currentTarget?: unknown;
+  defaultPrevented?: boolean;
+  cancelBubble?: boolean;
+  preventDefault?(): void;
+  stopPropagation?(): void;
+}
+
+export type VEventListener =
+  | ((event: VEventLike) => void)
+  | { handleEvent(event: VEventLike): void };
+
 /**
  * Base class for every node in the tree. Concrete node types
  * ({@link VElement}, {@link VText}, …) extend this class.
@@ -20,6 +34,19 @@ import type { VElement } from "./element.js";
  * stored as redundant pointers, matching the performance guidance in the spec.
  */
 export abstract class VNode {
+  static readonly ELEMENT_NODE = 1;
+  static readonly ATTRIBUTE_NODE = 2;
+  static readonly TEXT_NODE = 3;
+  static readonly CDATA_SECTION_NODE = 4;
+  static readonly ENTITY_REFERENCE_NODE = 5;
+  static readonly ENTITY_NODE = 6;
+  static readonly PROCESSING_INSTRUCTION_NODE = 7;
+  static readonly COMMENT_NODE = 8;
+  static readonly DOCUMENT_NODE = 9;
+  static readonly DOCUMENT_TYPE_NODE = 10;
+  static readonly DOCUMENT_FRAGMENT_NODE = 11;
+  static readonly NOTATION_NODE = 12;
+
   /** DOM-compatible numeric node type. */
   abstract readonly nodeType: number;
 
@@ -32,6 +59,7 @@ export abstract class VNode {
   _parentNode: VNode | null = null;
   /** @internal */
   _ownerDocument: VDocument | null = null;
+  private _eventListeners?: Map<string, Set<VEventListener>>;
 
   // --- Ownership -----------------------------------------------------------
 
@@ -91,6 +119,47 @@ export abstract class VNode {
 
   hasChildNodes(): boolean {
     return this._childNodes.length > 0;
+  }
+
+  // --- Events --------------------------------------------------------------
+
+  addEventListener(
+    type: string,
+    listener: VEventListener | null,
+    _options?: unknown,
+  ): void {
+    if (!listener) return;
+    const listeners =
+      this._eventListeners ?? (this._eventListeners = new Map());
+    const bucket = listeners.get(type) ?? new Set<VEventListener>();
+    bucket.add(listener);
+    listeners.set(type, bucket);
+  }
+
+  removeEventListener(
+    type: string,
+    listener: VEventListener | null,
+    _options?: unknown,
+  ): void {
+    if (!listener) return;
+    this._eventListeners?.get(type)?.delete(listener);
+  }
+
+  dispatchEvent(event: VEventLike): boolean {
+    if (!event || typeof event.type !== "string") {
+      throw new TypeError("Failed to execute 'dispatchEvent': invalid event.");
+    }
+    try {
+      event.target ??= this;
+      event.currentTarget = this;
+    } catch {
+      // Some third-party event objects expose read-only target properties.
+    }
+    for (const listener of [...(this._eventListeners?.get(event.type) ?? [])]) {
+      if (typeof listener === "function") listener.call(this, event);
+      else listener.handleEvent(event);
+    }
+    return !event.defaultPrevented;
   }
 
   // --- Values --------------------------------------------------------------

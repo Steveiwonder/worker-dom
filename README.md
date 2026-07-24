@@ -175,6 +175,27 @@ worker.onmessage = (e) => {
 worker.postMessage({ id: 1, text: "Built off the main thread" });
 ```
 
+Libraries that render SVG but expect browser globals can opt into the
+compatibility surface before importing the renderer:
+
+```js
+import { createDocument, installDOMGlobals } from "worker-vdom";
+
+const document = createDocument();
+installDOMGlobals(document);
+
+// Import DOM-dependent renderers after the globals have been installed.
+const renderer = await import("./renderer.js");
+```
+
+`installDOMGlobals` fills missing globals by default. Pass
+`{ overwrite: true }` to replace existing implementations, or
+`{ target: sandbox }` to install them on a specific worker-like object. It
+includes SVG animated values and transforms, style reflection, event targets,
+`DOMParser`, `XMLSerializer`, animation-frame scheduling, and the common
+`SVG*Element` constructors used for `instanceof` checks. It is explicitly
+installed and has no import-time side effects.
+
 A complete, runnable version is in [`examples/`](examples/) (see
 [`examples/README.md`](examples/README.md)), along with a plain-Node demo
 (`examples/node-demo.mjs`).
@@ -198,6 +219,7 @@ scope — never provided).
 | `appendChild`, `insertBefore`, `removeChild`, `replaceChild`, `remove` | Supported | pre-insertion validity enforced |
 | `before`, `after`, `replaceWith`, `append`, `prepend`, `replaceChildren` | Supported | accept nodes and strings |
 | `cloneNode(deep?)` | Supported | shallow and deep |
+| `addEventListener`, `removeEventListener`, `dispatchEvent` | Partial | local EventTarget behavior; no capture/bubble traversal |
 
 ### Element
 
@@ -215,6 +237,9 @@ scope — never provided).
 | `innerHTML`, `outerHTML` (get/set) | Partial | serializer is exact; parser is a practical subset (below) |
 | `insertAdjacentHTML`, `insertAdjacentElement`, `insertAdjacentText` | Supported | |
 | `matches`, `closest`, `querySelector`, `querySelectorAll` | Partial | selector subset (see above) |
+| `style` (`CSSStyleDeclaration`) | Partial | attribute-backed declarations; no cascade or stylesheet evaluation |
+| SVG animated values, transforms, matrices | Partial | reflected values required by SVG renderers; no animation engine |
+| `getBBox`, `getBoundingClientRect`, `clientWidth`/`clientHeight`, `offsetWidth`/`offsetHeight` | Partial | derived from SVG geometry attributes/viewBox; no layout engine |
 
 ### Document
 
@@ -223,8 +248,11 @@ scope — never provided).
 | `createElement`, `createElementNS`, `createTextNode`, `createComment`, `createDocumentFragment`, `createDocumentType` | Supported | |
 | `documentElement`, `doctype`, `head`, `body` | Supported | `head`/`body` are `null` in XML mode until you build them |
 | `getElementById` | Supported | |
+| `getElementsByTagName`, `getElementsByTagNameNS`, `getElementsByClassName` | Partial | static snapshots |
 | `querySelector`, `querySelectorAll` | Partial | selector subset |
 | `importNode`, `adoptNode` | Supported | |
+| `implementation.hasFeature` | Partial | compatibility method; always returns `true` |
+| `defaultView` | Partial | populated by `installDOMGlobals` |
 | `mode` | Supported | `"html"` or `"xml"`, read-only |
 
 ### Other
@@ -236,20 +264,23 @@ scope — never provided).
 | Collections (`childNodes`, `children`, query results, `NamedNodeMap`) | Partial | static snapshots, not live |
 | `DOMException` | Partial | a bundled class with stable `name` values, not the engine's native `DOMException` |
 | Foreign-node insertion | Supported | nodes from another document are **auto-adopted** on insert |
+| `installDOMGlobals` | Partial | opt-in worker globals for DOM-dependent SVG renderers |
+| `DOMParser` / `XMLSerializer` | Partial | practical HTML/XML parser and XML serializer |
 
 ### Out of scope (Unsupported)
 
-These are intentionally **not** implemented and never will be — the goal is a
-document tree, not a browser:
+These are intentionally **not** implemented — the goal is a document tree and
+an SVG-rendering compatibility layer, not a browser:
 
-- Events / `addEventListener` / event dispatch
-- CSS, `style`, `getComputedStyle`, stylesheets
-- Layout and geometry: `getBoundingClientRect`, `offsetWidth`/`offsetTop`/…,
-  `clientWidth`/`clientHeight`/…
+- Event capture/bubbling/default browser actions
+- CSS cascade, stylesheet loading, selector matching for style rules
+- Browser layout and text measurement (`offsetTop`/`offsetLeft` and computed
+  flow layout); geometry methods only reflect explicit SVG values
 - Scrolling, focus, and selection
 - Forms (submission, validation, form state)
 - Media elements, canvas, and `2d`/`webgl` contexts
-- Navigation, `location`, history
+- Navigation and history (`installDOMGlobals` only supplies a read-only-shaped
+  location placeholder when the host has none)
 - Custom elements and the shadow DOM
 - `MutationObserver`
 - Script execution (`<script>` content is stored as text, never run)

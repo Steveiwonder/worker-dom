@@ -22,6 +22,28 @@ export { VDocumentType } from "./document-type.js";
 
 export { DOMTokenList } from "./class-list.js";
 export type { DOMStringMap } from "./dataset.js";
+export { VCSSStyleDeclaration } from "./style.js";
+export { VDOMParser, VXMLSerializer } from "./dom-parser.js";
+
+export {
+  VSVGAnimatedLength,
+  VSVGAnimatedRect,
+  VSVGAnimatedString,
+  VSVGAnimatedTransformList,
+  VSVGMatrix,
+  VSVGTransform,
+  VSVGTransformList,
+  type SVGLengthValueLike,
+  type SVGMatrixLike,
+  type SVGRectLike,
+} from "./svg.js";
+
+export {
+  installDOMGlobals,
+  VEvent,
+  type InstallDOMGlobalsOptions,
+} from "./globals.js";
+export type { VEventLike, VEventListener } from "./node.js";
 
 export {
   DOMException,

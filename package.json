@@ -1,6 +1,6 @@
 {
   "name": "worker-vdom",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A lightweight, dependency-free virtual DOM that runs inside a browser Web Worker. Familiar DOM APIs for building, mutating, querying, cloning and serializing an isolated tree.",
   "type": "module",
   "license": "MIT",
