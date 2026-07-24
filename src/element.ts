@@ -250,8 +250,16 @@ export class VElement extends VNode {
 
   // --- SVG reflected properties -------------------------------------------
 
-  get href(): VSVGAnimatedString {
-    return this._animatedString("href", "xlink:href");
+  get href(): string | VSVGAnimatedString {
+    return this.namespaceURI === SVG_NS
+      ? this._animatedString("href", "xlink:href")
+      : (this.getAttribute("href") ?? "");
+  }
+  set href(value: string | VSVGAnimatedString) {
+    this.setAttribute(
+      "href",
+      typeof value === "string" ? value : value.baseVal,
+    );
   }
 
   get x(): VSVGAnimatedLength {

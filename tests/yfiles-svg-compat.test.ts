@@ -37,8 +37,9 @@ describe("yFiles SVG compatibility surface", () => {
     image.setAttribute("width", "80");
     image.setAttribute("class", "diagram-node");
 
-    expect(image.href.baseVal).toBe("asset.svg");
-    image.href.baseVal = "embedded.svg";
+    const href = image.href as { baseVal: string };
+    expect(href.baseVal).toBe("asset.svg");
+    href.baseVal = "embedded.svg";
     expect(image.getAttribute("href")).toBe("embedded.svg");
 
     expect(image.x.baseVal.value).toBe(12.5);
@@ -49,6 +50,16 @@ describe("yFiles SVG compatibility surface", () => {
     expect((image.className as { baseVal: string }).baseVal).toBe(
       "diagram-node",
     );
+  });
+
+  it("reflects writable href strings on HTML link elements", () => {
+    const document = createDocument();
+    const link = document.createElement("link");
+
+    link.href = "/assets/worker-renderer.js";
+
+    expect(link.href).toBe("/assets/worker-renderer.js");
+    expect(link.getAttribute("href")).toBe("/assets/worker-renderer.js");
   });
 
   it("supports SVG viewBox, transform lists, matrices and geometry", () => {
